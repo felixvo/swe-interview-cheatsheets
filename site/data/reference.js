@@ -2,6 +2,126 @@
 const REFERENCE = {
   /* =================== CODING =================== */
   coding: [
+    { id: 'map', title: 'Pattern Map — which pattern?', html: `
+      <p>Classify a new problem by its strongest <b>signal</b>, then jump to the matching template. The full trigger→pattern lookup is in <b>Pattern Recognition</b> below.</p>
+      <div class="mm-wrap"><svg class="mindmap" viewBox="0 0 662 832" width="662" role="img" aria-label="Coding pattern map">
+<defs><linearGradient id="mmroot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b6ef5"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs>
+<path class="mm-link mm-c0" d="M140,424.5 C168,424.5 168,97.0 196,97.0"/>
+<path class="mm-link mm-c1" d="M140,424.5 C168,424.5 168,245.0 196,245.0"/>
+<path class="mm-link mm-c2" d="M140,424.5 C168,424.5 168,342.0 196,342.0"/>
+<path class="mm-link mm-c3" d="M140,424.5 C168,424.5 168,473.0 196,473.0"/>
+<path class="mm-link mm-c4" d="M140,424.5 C168,424.5 168,621.0 196,621.0"/>
+<path class="mm-link mm-c5" d="M140,424.5 C168,424.5 168,752.0 196,752.0"/>
+<path class="mm-link mm-c0" d="M346,97.0 C374,97.0 374,29.0 402,29.0"/>
+<path class="mm-link mm-c0" d="M346,97.0 C374,97.0 374,63.0 402,63.0"/>
+<path class="mm-link mm-c0" d="M346,97.0 C374,97.0 374,97.0 402,97.0"/>
+<path class="mm-link mm-c0" d="M346,97.0 C374,97.0 374,131.0 402,131.0"/>
+<path class="mm-link mm-c0" d="M346,97.0 C374,97.0 374,165.0 402,165.0"/>
+<path class="mm-link mm-c1" d="M346,245.0 C374,245.0 374,211.0 402,211.0"/>
+<path class="mm-link mm-c1" d="M346,245.0 C374,245.0 374,245.0 402,245.0"/>
+<path class="mm-link mm-c1" d="M346,245.0 C374,245.0 374,279.0 402,279.0"/>
+<path class="mm-link mm-c2" d="M346,342.0 C374,342.0 374,325.0 402,325.0"/>
+<path class="mm-link mm-c2" d="M346,342.0 C374,342.0 374,359.0 402,359.0"/>
+<path class="mm-link mm-c3" d="M346,473.0 C374,473.0 374,405.0 402,405.0"/>
+<path class="mm-link mm-c3" d="M346,473.0 C374,473.0 374,439.0 402,439.0"/>
+<path class="mm-link mm-c3" d="M346,473.0 C374,473.0 374,473.0 402,473.0"/>
+<path class="mm-link mm-c3" d="M346,473.0 C374,473.0 374,507.0 402,507.0"/>
+<path class="mm-link mm-c3" d="M346,473.0 C374,473.0 374,541.0 402,541.0"/>
+<path class="mm-link mm-c4" d="M346,621.0 C374,621.0 374,587.0 402,587.0"/>
+<path class="mm-link mm-c4" d="M346,621.0 C374,621.0 374,621.0 402,621.0"/>
+<path class="mm-link mm-c4" d="M346,621.0 C374,621.0 374,655.0 402,655.0"/>
+<path class="mm-link mm-c5" d="M346,752.0 C374,752.0 374,701.0 402,701.0"/>
+<path class="mm-link mm-c5" d="M346,752.0 C374,752.0 374,735.0 402,735.0"/>
+<path class="mm-link mm-c5" d="M346,752.0 C374,752.0 374,769.0 402,769.0"/>
+<path class="mm-link mm-c5" d="M346,752.0 C374,752.0 374,803.0 402,803.0"/>
+<rect class="mm-rootbox" x="8" y="392.5" width="132" height="64" rx="12"/>
+<text class="mm-roott" x="74" y="418.5" text-anchor="middle">Which pattern?</text>
+<text class="mm-roots" x="74" y="436.5" text-anchor="middle">read the signal</text>
+<rect class="mm-cl mm-c0" x="196" y="81.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c0" x="271" y="95.0" text-anchor="middle">Array / string</text>
+<text class="mm-clt mm-c0" x="271" y="108.0" text-anchor="middle">scan</text>
+<rect class="mm-cl mm-c1" x="196" y="229.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c1" x="271" y="243.0" text-anchor="middle">Search &amp;</text>
+<text class="mm-clt mm-c1" x="271" y="256.0" text-anchor="middle">order</text>
+<rect class="mm-cl mm-c2" x="196" y="326.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c2" x="271" y="346.0" text-anchor="middle">Linked list</text>
+<rect class="mm-cl mm-c3" x="196" y="457.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c3" x="271" y="471.0" text-anchor="middle">Trees &amp;</text>
+<text class="mm-clt mm-c3" x="271" y="484.0" text-anchor="middle">graphs</text>
+<rect class="mm-cl mm-c4" x="196" y="605.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c4" x="271" y="619.0" text-anchor="middle">Choices &amp;</text>
+<text class="mm-clt mm-c4" x="271" y="632.0" text-anchor="middle">cost</text>
+<rect class="mm-cl mm-c5" x="196" y="736.0" width="150" height="32" rx="8"/>
+<text class="mm-clt mm-c5" x="271" y="750.0" text-anchor="middle">Number / string</text>
+<text class="mm-clt mm-c5" x="271" y="763.0" text-anchor="middle">tricks</text>
+<rect class="mm-leaf" x="402" y="16.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c0" x="402" y="16.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="33.0">Two pointers</text>
+<rect class="mm-leaf" x="402" y="50.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c0" x="402" y="50.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="67.0">Sliding window</text>
+<rect class="mm-leaf" x="402" y="84.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c0" x="402" y="84.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="101.0">Monotonic deque</text>
+<rect class="mm-leaf" x="402" y="118.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c0" x="402" y="118.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="135.0">Prefix sum + hashmap</text>
+<rect class="mm-leaf" x="402" y="152.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c0" x="402" y="152.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="169.0">Monotonic stack</text>
+<rect class="mm-leaf" x="402" y="198.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c1" x="402" y="198.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="215.0">Binary search</text>
+<rect class="mm-leaf" x="402" y="232.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c1" x="402" y="232.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="249.0">Heap / top-K</text>
+<rect class="mm-leaf" x="402" y="266.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c1" x="402" y="266.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="283.0">Intervals: sort + sweep</text>
+<rect class="mm-leaf" x="402" y="312.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c2" x="402" y="312.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="329.0">Fast &amp; slow pointers</text>
+<rect class="mm-leaf" x="402" y="346.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c2" x="402" y="346.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="363.0">In-place reversal</text>
+<rect class="mm-leaf" x="402" y="392.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c3" x="402" y="392.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="409.0">DFS on trees</text>
+<rect class="mm-leaf" x="402" y="426.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c3" x="402" y="426.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="443.0">BFS</text>
+<rect class="mm-leaf" x="402" y="460.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c3" x="402" y="460.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="477.0">Topological sort</text>
+<rect class="mm-leaf" x="402" y="494.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c3" x="402" y="494.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="511.0">Union-Find</text>
+<rect class="mm-leaf" x="402" y="528.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c3" x="402" y="528.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="545.0">Dijkstra</text>
+<rect class="mm-leaf" x="402" y="574.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c4" x="402" y="574.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="591.0">Backtracking</text>
+<rect class="mm-leaf" x="402" y="608.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c4" x="402" y="608.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="625.0">Dynamic programming</text>
+<rect class="mm-leaf" x="402" y="642.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c4" x="402" y="642.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="659.0">Greedy</text>
+<rect class="mm-leaf" x="402" y="688.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c5" x="402" y="688.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="705.0">Cyclic sort / XOR</text>
+<rect class="mm-leaf" x="402" y="722.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c5" x="402" y="722.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="739.0">Expand around center</text>
+<rect class="mm-leaf" x="402" y="756.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c5" x="402" y="756.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="773.0">Trie</text>
+<rect class="mm-leaf" x="402" y="790.0" width="248" height="26" rx="7"/>
+<rect class="mm-bar mm-c5" x="402" y="790.0" width="4" height="26" rx="2"/>
+<text class="mm-leaft" x="418" y="807.0">Matrix traversal</text>
+</svg></div>
+      <p class="faint" style="font-size:12.5px">Colour = family of signal. Scroll sideways on a narrow screen.</p>` },
     { id: 'framework', title: 'Universal Framework', html: `
       <p>Use roughly this sequence for every coding question:</p>
       <ol>

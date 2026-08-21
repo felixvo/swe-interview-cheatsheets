@@ -130,6 +130,22 @@ button.btn:disabled { opacity: .5; cursor: default; }
 .stat span { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; }
 
 /* ===== Reference ===== */
+/* ---- pattern mindmap ---- */
+:root { --mm0:#3b6ef5; --mm1:#7b5cff; --mm2:#1f9d55; --mm3:#c47f00; --mm4:#d64545; --mm5:#0e8f9c; }
+:root[data-theme="dark"] { --mm0:#5b8cff; --mm1:#9b82ff; --mm2:#46c07f; --mm3:#e0a63a; --mm4:#e56b6b; --mm5:#33b6c4; }
+.mm-wrap { overflow-x: auto; margin: 16px 0 10px; padding-bottom: 4px; }
+.mindmap { width: 100%; max-width: 662px; min-width: 600px; height: auto; display: block; }
+.mm-c0 { --c: var(--mm0); } .mm-c1 { --c: var(--mm1); } .mm-c2 { --c: var(--mm2); }
+.mm-c3 { --c: var(--mm3); } .mm-c4 { --c: var(--mm4); } .mm-c5 { --c: var(--mm5); }
+.mm-link { fill: none; stroke: var(--c); stroke-width: 1.5; opacity: .5; }
+.mm-rootbox { fill: url(#mmroot); }
+.mm-roott { fill: #fff; font-family: var(--sans); font-size: 13px; font-weight: 700; }
+.mm-roots { fill: rgba(255,255,255,.85); font-family: var(--sans); font-size: 11px; }
+.mm-cl { fill: color-mix(in srgb, var(--c) 13%, var(--surface)); stroke: var(--c); stroke-width: 1.3; }
+.mm-clt { fill: var(--c); font-family: var(--sans); font-size: 11.5px; font-weight: 700; }
+.mm-leaf { fill: var(--surface); stroke: var(--border); stroke-width: 1; }
+.mm-bar { stroke: none; fill: var(--c); }
+.mm-leaft { fill: var(--text); font-family: var(--sans); font-size: 12.5px; font-weight: 600; }
 .ref-intro { margin: 6px 0 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); max-width: 900px; }
 .ref-intro h1 { margin: 0 0 8px; }
 .ref-intro .lead { line-height: 1.65; }

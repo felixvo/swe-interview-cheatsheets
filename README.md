@@ -13,8 +13,9 @@ can recall the template from a sentence. Built from a set of cheatsheet PDFs.
 - **System Design** — frameworks, estimation, architecture patterns, trade-offs, question walkthroughs.
 - **Behavioral** — STAR (senior edition), story bank, company frameworks, senior signals.
 
-Plus: a sticky table of contents grouped by topic with scroll-spy, a filter box, a
-self-contained Python/SQL syntax highlighter (no dependencies), and a dark / light theme toggle.
+Plus: a visual **pattern map** at the top of Coding (signal → pattern family → template), a sticky
+table of contents grouped by topic with scroll-spy, a filter box, a self-contained Python/SQL
+syntax highlighter (no dependencies), and a dark / light theme toggle.
 
 It's a **fully static site** — no build step, no backend.
 
