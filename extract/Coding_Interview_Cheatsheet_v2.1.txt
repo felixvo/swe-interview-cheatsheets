@@ -1,0 +1,692 @@
+Coding Interview Cheatsheet
+Goal: A reusable reference for algorithm/coding interviews (LeetCode-style). Focus on pattern
+recognition, canonical templates, complexity reasoning, and communication — not memorizing 500
+problems. T emplates are in Python (the most compact interview language); every pattern is language-
+agnostic.
+v2 changes: fixed correctness bugs in the tree-DFS, cyclic-sort, dedup, merge-intervals, and
+union-find templates; corrected the constraint→complexity table; added monotonic deque, expand-
+around-center, and matrix traversal patterns. Changed lines are marked ⚑.
+v2.1 changes: fixed the LCS template (a literal transcription gave wrong answers via Python
+negative-index wraparound); marked and explained the fast/slow cycle-check placement fix that v2
+made silently; lowered the O(n!) row to n ≤ 10 to match the stated Python budget; corrected the
+integer-truncation advice (math.trunc is not safer than int here); added the missing self.best =
+0 init for Diameter.
+Table of Contents
+Universal Interview Framework
+Complexity and Constraints
+Data Structure Cheat Sheet
+Pattern Recognition
+The Patterns
+Python Interview T oolbox
+Edge-Case Checklist
+Common Mistakes
+Communicating Like a Senior
+Final 5-Minute Cheat Sheet
+1. Universal Interview Framework
+Use roughly this sequence for every coding question:
+Restate the problem in your own words
+Clarify constraints (n? value range? sorted? duplicates? negatives?)
+Walk one example by hand; propose edge cases
+State the brute force + its complexity (out loud, don't code it)
+Optimize: name the bottleneck, match a pattern
+Agree on the approach with the interviewer before coding
+Code cleanly, narrating as you go
+T est: trace the given example, then your edge cases
+State final time/space complexity
+Discuss follow-ups and trade-offs
+Constraints are hints. n ≤ 10⁵ is the interviewer telling you the target is roughly O(n log n) — see §2.
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. 
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. 
+Coding Interview Cheatsheet v2.1 — 1 / 16
+1.1 45-Minute Pacing Template
+Time Activity
+0–5 Restate, clarify constraints, example + edge cases
+5–10 Brute force out loud → optimize → agree on approach
+10–30 Code, narrating; keep functions small
+30–38 T est by tracing; fix bugs calmly
+38–45 Complexity, follow-ups, variants
+Never code in silence, and never start coding before the interviewer agrees with the plan. If stuck for
+2+ minutes, say what you're considering — hints given to a communicative candidate cost far less than
+dead air.
+2. Complexity and Constraints
+2.1 Constraint → Target Complexity
+⚑ Budget: roughly 10⁶–10⁷ simple operations per second in Python (10⁷–10⁸ in C++/Java). Every
+row below is derived from that number, so state which language you're in when you quote it.
+Input size n Target complexity Typical approach
+n ≤ 10 ⚑ O(n!) permutations, brute force
+n ≤ 22 ⚑ O(2ⁿ) subsets, backtracking, bitmask
+n ≤ 200 ⚑ O(n³) triple loop, Floyd–Warshall
+n ≤ 3,000 O(n²) double loop, 2D DP
+n ≤ 10⁵ ⚑ O(n log n) sort, heap, binary search, divide & conquer
+n ≤ 10⁶ O(n) one pass, two pointers, hashmap
+n ≥ 10⁹ ⚑ O(log n) / O(1) binary search on answer, math, bit tricks
+⚑ Why the old table was off: 12! ≈ 4.8×10⁸ — too slow, and even 11! ≈ 4×10⁷ overshoots the Python
+budget above (≈3 s measured); 10! ≈ 3.6×10⁶ fits. An array of 10⁸ ints doesn't fit in memory, so "n ≤
+10⁸ → O(n)" describes a problem that can't be given as an array — very large n means the input is 
+implicit (a range to search over), not stored. T wo caveats worth saying out loud: the small-n rows
+assume ordinary pruning (real backtracking rarely visits the full space), and n ≤ 200 → n³ ≈ 8×10⁶ sits
+right at the Python ceiling — comfortable in C++, tight in Python.
+2.2 Common Complexities
+Complexity Examples
+O(1) hashmap get/put, stack push/pop, array index
+O(log n) binary search, balanced BST ops, heap push/pop
+O(n) linear scan, two pointers, BFS/DFS on a list
+O(n log n) sorting, n heap operations, divide & conquer
+O(n²) nested loops, comparing all pairs
+O(2ⁿ) all subsets, unmemoized recursion with 2 branches
+O(n!) all permutations
+Coding Interview Cheatsheet v2.1 — 2 / 16
+Notes:amortized — a Python list append is O(1) amortized despite occasional resizes. Space includes
+the recursion stack — a recursive DFS on a skewed tree is O(n) space even with no explicit data
+structure. Graph algorithms are usually stated as O(V + E).
+3. Data Structure Cheat Sheet
+Structure Strengths (typical costs)Watch out
+Array / list index O(1), append O(1) am.insert/delete middle O(n)
+Hash map / setlookup, insert, delete O(1) avgworst O(n); keys must be hashable
+Linked list insert/delete at a known node
+O(1)
+no random access — search O(n)
+Stack push/pop/peek O(1) LIFO only
+Queue / dequeboth ends O(1)
+(collections.deque)
+never pop(0) on a Python list — O(n)
+Heap (heapq) peek O(1), push/pop O(log n),
+build O(n)
+min-heap only in Python — negate for max; no fast search
+Monotonic
+deque ⚑
+sliding-window min/max in O(n)
+total
+template in §5.2a
+Sorted array binary search O(log n) insert O(n)
+Balanced BSTsearch/insert/delete O(log n)not in Python stdlib — say "a sorted structure"; often a
+heap or bisect-maintained list substitutes
+Trie word ops O(L) memory-heavy
+Union-Find find/union ~O(1) amortized
+(α(n))
+needs path compression + union by size/rank (§5.13)
+Choosing: fast membership → hash set. Order + fast min/max → heap. Order + arbitrary lookup →
+sorted structure + bisect. "Next greater/smaller" → monotonic stack. Sliding window max → monotonic
+deque. Grouping/connectivity → union-find.
+4. Pattern Recognition
+Classify the question, then jump to the matching template in §5:
+Coding Interview Cheatsheet v2.1 — 3 / 16
+Trigger words in the problem Pattern §
+sorted array; pair summing to target T wo pointers 5.1
+contiguous subarray/substring, longest/shortest windowSliding window 5.2
+max/min of every window of size k ⚑ Monotonic deque 5.2a
+subarray sum equals k (negatives allowed); range sumsPrefix sum + hashmap 5.3
+sorted / rotated sorted; "minimize the maximum"; smallest feasible
+answer
+Binary search (on index or on
+answer)
+5.4
+linked list cycle / middle / k-th from end Fast & slow pointers 5.5
+reverse list / reorder in place Linked-list reversal 5.6
+matching brackets; next greater/smaller element; spansStack / monotonic stack 5.7
+top k, k-th largest, k closest, merge k lists, running medianHeap 5.8
+intervals: merge, overlap, meeting rooms Sort + sweep / heap 5.9
+shortest path (unweighted), minimum steps, level orderBFS 5.10
+tree paths, subtree properties, validate BST DFS on trees 5.11
+all permutations / combinations / subsets; place queens; word
+search
+Backtracking 5.12
+prerequisites / dependency order; connected components; cheapest
+path
+T opological sort / Union-Find /
+Dijkstra
+5.13
+count the ways; min/max cost over choices; "can you reach"Dynamic programming 5.14
+pick the locally best and it's provably safe Greedy (usually after sorting)5.15
+prefix matching, autocomplete, many word lookups Trie 5.16
+numbers 1..n with one missing/duplicate; O(1) space tricksCyclic sort / index-as-hash / XOR5.17
+palindromic substrings, longest palindrome ⚑ Expand around center 5.18
+spiral order, rotate image, set matrix zeroes ⚑ Matrix traversal 5.19
+5. The Patterns
+Each pattern: when to use, the canonical template, classic problems, and the pitfall.
+5.1 Two Pointers
+When: sorted input, pair/triple targets, in-place partitioning.
+Opposite ends (pair sum in sorted array) — O(n):
+l, r = 0, len(a) - 1
+whilel < r:
+s = a[l] + a[r]
+if s ==target:
+return[l, r]
+if s < target:
+l +=1
+else:
+r -=1
+Same direction (writer pointer) — remove duplicates in place:
+Coding Interview Cheatsheet v2.1 — 4 / 16
+if nota: # ⚑ old version returned 1 on empty input
+return0
+w = 1
+forr in range(1, len(a)):
+if a[r] !=a[w - 1]:
+a[w] = a[r]
+w +=1
+returnw
+Classics: T wo Sum II, 3Sum (sort, fix one, two-pointer the rest), Container With Most Water, Move
+Zeroes. Pitfall: 3Sum duplicate handling — after using a value, skip equal neighbors at all three
+positions.
+5.2 Sliding Window
+When: contiguous subarray/substring, "longest/shortest window such that…".
+Variable-size shrinkable template — O(n), each index enters and leaves once:
+left= best= 0
+forrightin range(len(a)):
+# add a[right] to the window state
+whilewindow_invalid():
+# remove a[left] from state
+left+=1
+best= max(best, right- left+ 1)
+Longest substring without repeating characters:
+last= {}
+left= best= 0
+forright, c in enumerate(s):
+if c in lastandlast[c] >=left:
+left= last[c] + 1
+last[c] = right
+best= max(best, right- left+ 1)
+Correctness condition: the window only works when growing/shrinking moves the constraint 
+monotonically (e.g. sums of all-positive numbers). With negatives, "subarray sum = k" is not a
+window problem — use prefix sum + hashmap (§5.3).
+Classics: Minimum Window Substring, Max Sum Subarray of Size K, Fruit Into Baskets, Longest
+Repeating Character Replacement.
+5.2a Monotonic Deque ⚑
+When: max (or min) of every fixed-size window. Referenced in §3 of v1 but never given a template.
+Sliding window maximum — O(n), deque holds indices with decreasing values:
+Coding Interview Cheatsheet v2.1 — 5 / 16
+fromcollectionsimportdeque
+dq, res= deque(),[]
+fori, x in enumerate(a):
+if dqanddq[0] <=i - k: # index fell out of the window
+dq.popleft()
+whiledqanda[dq[-1]]<=x: # x dominates everything smaller
+dq.pop()
+dq.append(i)
+if i >=k - 1:
+res.append(a[dq[0]])
+Pitfall: store indices, not values — you need the index to know when an element expires. For window
+minimum, flip the comparison to >=.
+5.3 Prefix Sum + HashMap
+When: subarray sums/counts with negatives allowed; many range-sum queries.
+Count subarrays summing to k — O(n):
+count= prefix= 0
+seen= {0: 1} # empty prefix
+forx in nums:
+prefix+=x
+count+=seen.get(prefix- k, 0)
+seen[prefix] = seen.get(prefix, 0) + 1
+Classics: Subarray Sum Equals K, Contiguous Array (map 0→−1), Range Sum Query (precompute prefix
+array). Pitfall: forgetting to seed {0: 1} — it counts subarrays starting at index 0.
+5.4 Binary Search
+When: sorted data, rotated sorted arrays, or any monotonic feasibility question ("smallest x that
+works").
+One template, memorized cold — lower bound (first index with a[i] >= target):
+lo, hi= 0, len(a)
+whilelo< hi:
+mid= (lo+ hi) //2
+if a[mid] < target:
+lo= mid+ 1
+else:
+hi= mid
+returnlo # == len(a) if all elements < target
+Binary search on the answer space — smallest feasible value:
+lo, hi= min_answer, max_answer
+whilelo< hi:
+mid= (lo+ hi) //2
+if feasible(mid):
+hi= mid
+else:
+lo= mid+ 1
+returnlo
+For the largest feasible value: mid = (lo + hi + 1) // 2; lo = mid when feasible, else hi = mid - 1.
+Coding Interview Cheatsheet v2.1 — 6 / 16
+⚑ Rotated arrays with duplicates: the "which half is sorted" test breaks when a[lo] == a[mid] ==
+a[hi] (e.g. [1,1,1,0,1]). Shrink with lo += 1 and note that worst case degrades to O(n) — say this
+out loud, it's the point of the follow-up.
+Classics: Search in Rotated Sorted Array, Koko Eating Bananas, Capacity to Ship Packages, Split Array
+Largest Sum, First Bad Version. Pitfall: off-by-one. Pick ONE template and never improvise; feasible()
+must be monotonic or the search is invalid.
+5.5 Fast & Slow Pointers
+When: linked-list cycle, middle node, k-th from end, "sequence eventually repeats" (Happy Number).
+slow= fast= head
+whilefastandfast.next:
+slow, fast= slow.next, fast.next.next
+if slowis fast: # ⚑ check INSIDE the loop
+returnTrue
+returnFalse
+⚑ The comparison must live inside the loop — this is a real fix, not a formatting choice, and v2 made it
+without a flag. Written after the loop (which is how v1's mangled indentation reads), an empty or single-
+node list returns True because slow is fast holds trivially, and a list with an actual cycle never exits
+the loop at all.
+Cycle start: after they meet, reset one pointer to head; advance both one step at a time; the meeting
+point is the cycle entrance. Middle node: when fast hits the end, slow is the middle. Pitfall: compare
+nodes with is, not ==; guard fast and fast.next in that order.
+5.6 Linked-List Reversal
+prev= None
+whilecur:
+cur.next, prev, cur= prev, cur, cur.next
+returnprev # new head
+Classics: Reverse Linked List, Reverse Nodes in k-Group, Palindrome Linked List (middle + reverse
+second half + compare), Reorder List. Pitfall: when the head can change, start from a dummy node
+and return dummy.next; draw the pointer diagram before coding.
+5.7 Stack and Monotonic Stack
+When: matching/nested structures; "next/previous greater/smaller element"; spans and histograms.
+Next greater element — O(n), stack holds indices with decreasing values:
+res= [-1] * len(a)
+stack= []
+fori, x in enumerate(a):
+whilestackanda[stack[-1]]< x:
+res[stack.pop()]= x
+stack.append(i) # ⚑ outside the while loop
+Classics: Valid Parentheses, Min Stack, Daily T emperatures, Largest Rectangle in Histogram, Trapping
+Rain Water. Pitfall: decide strictly-less vs less-or-equal deliberately — it controls how duplicates
+resolve.
+Coding Interview Cheatsheet v2.1 — 7 / 16
+5.8 Heap / Top-K
+When: top k, k-th largest, k closest, merge k sorted lists, running median. heapq is a min-heap; push
+negatives for a max-heap.
+K-th largest — keep a min-heap of size k, O(n log k):
+importheapq
+h = []
+forx in nums:
+heapq.heappush(h, x)
+if len(h) > k:
+heapq.heappop(h)
+returnh[0]
+Merge k sorted lists: heap of (value, list_index, node) — the index breaks ties so Python never
+tries to compare nodes. Running median: max-heap for the lower half + min-heap for the upper half,
+rebalance so sizes differ ≤ 1 — median is a top (or the mean of both tops).
+Classics: T op K Frequent Elements, K Closest Points, Meeting Rooms II (min-heap of end times), Find
+Median from Data Stream. Pitfall: for top-k, the heap size is k, not n — that's where the log k comes
+from. Mention quickselect as the O(n) average alternative.
+5.9 Intervals
+When: merge/insert intervals, overlap detection, rooms/resources.
+Merge — sort by start, O(n log n):
+if notintervals: # ⚑ old version raised IndexError
+return[]
+intervals.sort()
+merged= [intervals[0][:]]
+fors, e in intervals[1:]:
+if s <=merged[-1][1]:
+merged[-1][1] = max(merged[-1][1],e)
+else:
+merged.append([s, e])
+Meeting Rooms II: sort by start; min-heap of end times; pop when the earliest room frees up — heap
+size = rooms needed. Non-overlapping intervals / activity selection: sort by END, greedily keep
+the earliest-ending — sorting by start is the classic wrong move here. Pitfall: clarify whether touching
+intervals ([1,2] and [2,3]) count as overlapping.
+5.10 BFS
+When: shortest path in an unweighted graph/grid, minimum number of steps, level-order traversal.
+Coding Interview Cheatsheet v2.1 — 8 / 16
+fromcollectionsimportdeque
+q = deque([start])
+seen= {start}
+steps= 0
+whileq:
+for_ in range(len(q)): # one level at a time
+node= q.popleft()
+if node==goal:
+returnsteps
+fornbin neighbors(node):
+if nbnotin seen:
+seen.add(nb) # mark WHEN ENQUEUING
+q.append(nb)
+steps+=1
+Grid:for dr, dc in ((1,0),(-1,0),(0,1),(0,-1)) with bounds checks. Multi-source BFS (Rotting
+Oranges, 01 Matrix): seed the queue with all sources at distance 0.
+Classics: Number of Islands, Word Ladder, Shortest Path in Binary Matrix, Open the Lock. Pitfall:
+marking visited when popping instead of enqueuing lets duplicates flood the queue.
+5.11 DFS on Trees
+When: path properties, subtree aggregation, validate BST, LCA.
+The shape is always "return info up, update the answer globally." ⚑ v1 gave one template for two
+different problems; they need different code.
+Diameter (counts edges, so +1 per node):
+defdfs(node):
+if notnode:
+return0
+left, right= dfs(node.left),dfs(node.right)
+self.best= max(self.best, left+ right) # both sides
+returnmax(left, right) + 1 # parent extends ONE side
+Max Path Sum (⚑ must clamp negatives — v1 returned 1 instead of 2 on [2,-1]):
+defdfs(node):
+if notnode:
+return0
+left= max(dfs(node.left),0) # drop negative branches
+right= max(dfs(node.right),0)
+self.best= max(self.best, left+ right+ node.val)
+returnmax(left, right) + node.val
+⚑ Initialize self.best = 0 for Diameter (single node or empty tree ⇒ 0) and self.best = float('-inf')
+for Max Path Sum — an all-negative tree has a negative answer.
+Validate BST: pass (lo, hi) bounds down; comparing a node only with its parent is wrong. Inorder
+on a BST is sorted — k-th smallest. Pitfall: Python recursion limit is ~1000 — for deep/skewed inputs,
+sys.setrecursionlimit(...) or go iterative with an explicit stack.
+5.12 Backtracking
+When: enumerate all permutations/combinations/subsets, constraint placement (N-Queens), grid word
+search.
+Coding Interview Cheatsheet v2.1 — 9 / 16
+defbacktrack(start, path):
+res.append(path[:]) # or: if is_goal(path)
+fori in range(start, len(nums)):
+if i > startandnums[i] ==nums[i - 1]: # skip dups (sorted input)
+continue
+path.append(nums[i]) # choose
+backtrack(i + 1, path) # explore
+path.pop() # un-choose
+Permutations: track a used set instead of start. Word Search: mark the cell in place
+(board[r][c] = '#'), recurse, restore.
+Complexity: subsets O(2ⁿ), permutations O(n·n!) — say it before the interviewer asks. Pitfall:
+appending path instead of path[:] (aliasing); forgetting to restore state on the way out.
+5.13 Graphs: Topo Sort, Union-Find, Dijkstra
+Build adjacency first: adj = defaultdict(list).
+Topological sort (Kahn's) — dependencies, course schedule; detects cycles:
+indeg= [0] * n
+foru, v in edges:
+adj[u].append(v)
+indeg[v] +=1
+q = deque(i fori in range(n) if indeg[i] ==0)
+order= []
+whileq:
+u = q.popleft()
+order.append(u)
+forv in adj[u]:
+indeg[v] -=1
+if indeg[v] ==0:
+q.append(v)
+# len(order) < n  ⇒  cycle
+Union-Find — connectivity, components, "merge accounts". ⚑ v1 claimed rank/size but only
+implemented path compression; without union by size the tree can degrade:
+parent= list(range(n))
+size= [1] * n
+deffind(x):
+whileparent[x] !=x:
+parent[x] = parent[parent[x]] # path compression
+x = parent[x]
+returnx
+defunion(a, b):
+ra, rb= find(a),find(b)
+if ra==rb:
+returnFalse # already connected (cycle!)
+if size[ra] < size[rb]: # ⚑ union by size
+ra, rb= rb, ra
+parent[rb] = ra
+size[ra] +=size[rb]
+returnTrue
+Dijkstra — weighted shortest path, non-negative weights only:
+Coding Interview Cheatsheet v2.1 — 10 / 16
+dist= {src: 0}
+h = [(0, src)]
+whileh:
+d, u = heapq.heappop(h)
+if d > dist.get(u, float('inf')):
+continue # stale entry
+forv, w in adj[u]:
+nd= d + w
+if nd< dist.get(v, float('inf')):
+dist[v] = nd
+heapq.heappush(h, (nd, v))
+Pitfalls: undirected cycle detection needs a parent check in DFS (or union-find); Dijkstra with negative
+weights is wrong — say "Bellman-Ford" and move on.
+5.14 Dynamic Programming
+When: "count the ways", "minimum/maximum cost", "can you reach/partition" — choices +
+overlapping subproblems.
+The 5-step framework (say it out loud):
+State — what does dp[i] MEAN, in one sentence
+Transition — dp[i] from smaller states
+Base cases
+Order — iterate so dependencies are ready
+Answer — which cell holds it
+Top-down is transcription of the recurrence:
+fromfunctoolsimportlru_cache
+@lru_cache(None)
+defdp(i):
+if i < 0:
+return0
+returnmax(dp(i - 1),dp(i - 2) + nums[i]) # House Robber
+1D with O(1) space — keep two rolling variables. 2D (LCS) — ⚑ the padding convention is part of the
+template: dp is (n+1)×(m+1) zeros and dp[i][j] means LCS of a[:i], b[:j]:
+dp= [[0] * (m + 1) for_ in range(n + 1)]
+fori in range(1, n + 1):
+forj in range(1, m + 1):
+if a[i - 1] ==b[j - 1]: # ⚑ shift into the strings
+dp[i][j] = dp[i - 1][j - 1] + 1
+else:
+dp[i][j] = max(dp[i - 1][j],dp[i][j - 1])
+# answer: dp[n][m]
+⚑ Why the padding is not optional: transcribe the same recurrence onto a 0-indexed n×m table and, at 
+j = 0, dp[i-1][-1] silently wraps to the previous row's last cell — already filled, often nonzero. 
+LCS("aba", "ab") comes back 3 instead of 2. Java or C++ would crash on the identical code, which is at
+least honest; Python just hands you a wrong answer.
+Knapsack direction — the classic trap: with a 1D array, 0/1 knapsack iterates capacity backward
+(each item used once); unbounded knapsack iterates forward (reuse allowed):
+1. 
+2. 
+3. 
+4. 
+5. 
+Coding Interview Cheatsheet v2.1 — 11 / 16
+forcost, valin items: # 0/1
+forc in range(C, cost- 1, -1):
+dp[c] = max(dp[c],dp[c - cost] + val)
+LIS in O(n log n):tails array + bisect_left; replace or append — length of tails is the answer.
+Classics: Climbing Stairs, House Robber, Coin Change, LCS/Edit Distance, Word Break, Partition Equal
+Subset Sum, LIS. Pitfall: coding before stating what dp[i] means; getting the iteration order
+backward.
+5.15 Greedy
+When: a locally optimal choice is provably safe — usually after sorting by the right key. If you can't
+sketch an exchange argument ("swapping any other choice for mine never hurts"), it's probably DP .
+Classics: Jump Game (track max reach), Gas Station, Non-overlapping Intervals (sort by end), T ask
+Scheduler, Assign Cookies. Pitfall: greedy that "feels right" but fails a case — always test a
+counterexample before committing.
+5.16 Trie
+When: prefix matching, autocomplete, many-word lookups against a dictionary.
+classNode:
+def__init__(self):
+self.children= {}
+self.end= False
+definsert(root, word):
+cur= root
+forchin word:
+cur= cur.children.setdefault(ch, Node())
+cur.end= True
+Search / startsWith walk the same path — O(L) per word. Word Search II = trie of the dictionary +
+backtracking over the grid.
+5.17 Cyclic Sort, Index-as-Hash, XOR
+When: array contains numbers in a known range 1..n (or 0..n) and you need missing/duplicate in O(n)
+time, O(1) space.
+⚑ v1's template crashed on First Missing Positive (a listed classic) because arbitrary integers send j
+out of bounds. The range guard is not optional:
+i = 0
+whilei < len(a):
+j = a[i] - 1 # a[i] belongs at index a[i]-1
+if 0 <=j < len(a) anda[i] !=a[j]: # ⚑ bounds guard
+a[i],a[j] = a[j],a[i]
+else:
+i +=1
+# any i with a[i] != i+1 exposes missing/duplicate
+Index-as-hash: mark presence by negating a[abs(x) - 1]. XOR: everything appears twice except one
+→ XOR all. x & (x-1) drops the lowest set bit; x & -x isolates it; power of two ⇔ 
+x > 0 and x & (x-1) == 0.
+Coding Interview Cheatsheet v2.1 — 12 / 16
+Classics: Find All Missing Numbers, Find the Duplicate, Single Number, First Missing Positive.
+5.18 Expand Around Center ⚑
+When: palindromic substrings. O(n²) time, O(1) space — beats the DP table on space and is faster to
+write.
+defexpand(s, l, r):
+whilel >=0 andr < len(s) ands[l] ==s[r]:
+l -=1
+r +=1
+returnl + 1, r - 1 # inclusive bounds
+best= (0, 0)
+fori in range(len(s)):
+forl, r in (expand(s, i, i),expand(s, i, i + 1)):
+if r - l > best[1] - best[0]:
+best= (l, r)
+Pitfall: forgetting the even-length centers (i, i+1) — half the palindromes vanish. Classics: Longest
+Palindromic Substring, Palindromic Substrings. Follow-up: Manacher's is O(n) — name it, don't code it.
+5.19 Matrix Traversal ⚑
+When: spiral order, rotate image, set matrix zeroes. Not algorithmically deep, but index-fiddly enough
+that people lose ten minutes.
+Spiral order — shrink four boundaries:
+top, bot, left, right= 0, len(m) - 1, 0, len(m[0])- 1
+res= []
+whiletop<=botandleft<=right:
+forc in range(left, right+ 1):
+res.append(m[top][c])
+top+=1
+forr in range(top, bot+ 1):
+res.append(m[r][right])
+right-=1
+if top<=bot: # guard: single row left
+forc in range(right, left- 1, -1):
+res.append(m[bot][c])
+bot-=1
+if left<=right: # guard: single column left
+forr in range(bot, top- 1, -1):
+res.append(m[r][left])
+left+=1
+Rotate 90° clockwise in place: transpose, then reverse each row. Set Matrix Zeroes in O(1)
+space: use row 0 and column 0 as the marker arrays; handle column 0 with a separate flag. Pitfall: the
+two if guards in spiral — without them a single remaining row gets emitted twice.
+Coding Interview Cheatsheet v2.1 — 13 / 16
+6. Python Interview Toolbox
+Tool Use
+collections.Counter(s) frequency map in one line; Counter(a) == Counter(b) =
+anagram check
+collections.defaultdict(list)adjacency lists, grouping without key checks
+collections.deque O(1) queue — never list.pop(0) (O(n))
+heapq min-heap; heappush(h, (key, item)) sorts by tuple; negate
+keys for max-heap
+bisect.bisect_left / insort binary search / keep a list sorted
+sorted(x, key=lambda p: (p[0], -
+p[1]))
+multi-key sort; Python sort is stable
+functools.lru_cache(None) instant memoization for top-down DP
+enumerate, zip, comprehensions cleaner loops — interviewers notice
+float('inf') sentinel for min/max scans
+ord(c) - ord('a') bucket letters into [0]*26
+Gotchas worth saying out loud:
+Strings are immutable — build with a list and ''.join(parts); repeated s += c is O(n²).
+// floors toward −∞: (-3) // 2 == -2. ⚑ For truncation toward zero, int(a / b) and 
+math.trunc(a / b) are the same trap — both route through a float and silently lose precision past
+2⁵³: int((10**18 + 1) / 3) ends in …312 instead of …333. The exact all-integer version: a // b if
+(a < 0) == (b < 0) else -(-a // b).
+Dict/set keys must be hashable — use tuple(lst), never a list.
+Default recursion limit ≈ 1000 — deep trees/graphs need sys.setrecursionlimit or an iterative
+version.
+Compare node identity with is; == may be overloaded.
+Python ints don't overflow — but mention 32/64-bit limits if asked to port to Java/Go/C++.
+7. Edge-Case Checklist
+Run through before saying "done":
+Empty input; single element; two elements.
+All elements equal; already sorted; reverse sorted; duplicates.
+Negative numbers and zero (breaks sliding-window-sum assumptions — §5.2; and all-negative trees
+— §5.11).
+T arget not present; k larger than n.
+Linked list: empty, one node, cycle at the head.
+Tree: empty, single node, fully skewed (recursion depth!).
+Graph: disconnected, self-loop, no valid ordering (cycle).
+Intervals: touching endpoints, one interval containing another.
+Matrix: single row, single column, non-square. ⚑
+Strings: single char, all same char, case sensitivity, spaces.
+Values outside the assumed range (§5.17 — the guard that v1 was missing). ⚑
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+Coding Interview Cheatsheet v2.1 — 14 / 16
+8. Common Mistakes
+Coding before agreement — the interviewer was going to redirect you; now it costs 10 minutes.
+Silent coding — narrate; the signal is the reasoning, not the keystrokes.
+Improvised binary search — off-by-one death. One memorized template (§5.4), always.
+Marking visited on pop instead of push in BFS — duplicate flood (§5.10).
+Forgetting duplicate handling after sorting (3Sum, subsets with dups).
+Claiming O(1) space while recursing — the stack counts.
+Skipping the brute force — stating it is free credit and anchors the optimization story.
+Not tracing the given example before declaring done — most planted bugs die here.
+Mutating a structure while iterating it.
+Ignoring the constraints line — it literally states the target complexity (§2.1).
+⚑ Trusting a memorized template without checking its preconditions — every bug fixed
+across v2 and v2.1 was a template that worked on the happy path and failed on empty input,
+negative values, out-of-range values, or an unstated indexing convention.
+9. Communicating Like a Senior
+Lines that raise your level:
+"Constraints say n up to 10⁵, so I'm aiming for O(n log n) or better."
+"Brute force is O(n²) — checking every pair. The bottleneck is the inner lookup; a hashmap removes
+it."
+"I'll use a heap of size k rather than sorting: O(n log k) beats O(n log n) when k is small."
+"Trade-off: the hashmap costs O(n) extra space to get O(1) lookups. If memory mattered, sorting
+gives O(1) extra at O(n log n) time."
+"Before I say done — empty input, single element, all duplicates…" (then actually trace them.)
+Scale follow-ups are system-design questions in disguise: "what if the input doesn't fit in
+memory?" → external sort, streaming with a heap (top-K), chunk + merge. "What if it's called by many
+machines?" → shard the state.
+When given a hint, take it gracefully and build on it — arguing with hints is the fastest way to fail
+an otherwise good interview.
+10. Final 5-Minute Cheat Sheet
+Constraint → complexity: 10 → n! · 22 → 2ⁿ · 200 → n³ · 3,000 → n² · 10⁵ → n log n · 10⁶ → n · 10⁹ → log
+n.
+Trigger → pattern: sorted → binary search / two pointers · contiguous → window · window max →
+monotonic deque · sum k with negatives → prefix + hashmap · top-k → heap · all combinations →
+backtracking · count ways / min cost → DP · next greater → monotonic stack · min steps → BFS ·
+dependencies → topo sort · components → union-find · weighted path → Dijkstra · 1..n missing/dup →
+cyclic sort / XOR · palindrome → expand around center.
+Templates to have cold: lower-bound binary search · shrinkable window · BFS with level loop ·
+choose/explore/un-choose backtracking · linked-list reversal triple assignment.
+Every answer ends with: time complexity, space complexity (recursion counts), edge cases traced.
+Opening script: restate → constraints → example → brute force → optimize → agree → code.
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. 
+11. 
+• 
+• 
+• 
+• 
+• 
+Coding Interview Cheatsheet v2.1 — 15 / 16
+Closing script: "Time O(…), space O(…). I tested the example plus empty and duplicate cases. With
+more time I'd handle X, and at 10× the input size I'd move to Y ."
+One Sentence to Remember
+A coding interview tests whether you can map a new problem onto a known pattern — and narrate
+that mapping — under time pressure. Patterns over problems.
+Coding Interview Cheatsheet v2.1 — 16 / 16

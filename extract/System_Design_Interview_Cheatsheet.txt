@@ -1,0 +1,932 @@
+System Design Interview Cheatsheet
+Goal: A reusable reference for senior backend/system-design interviews. Focus on reasoning,
+bottlenecks, trade-offs, failure modes, and follow-up questions, not memorizing one
+architecture.
+Table of Contents
+Universal Interview Framework
+Back-of-the-Envelope Estimation
+Generic Architecture
+Reusable Architecture Patterns
+Database Cheat Sheet
+Caching Cheat Sheet
+Kafka and Queue Cheat Sheet
+Sharding and Replication
+Multi-Region Design
+Consistency and Transactions
+Reliability Patterns
+Security and Compliance
+Architecture Pattern Recognition
+T op 20 System Design Questions
+Quick Patterns for Other Common Questions
+What to Deep Dive On
+Follow-Ups and What-If Quick Answers
+T echnology Selection Cheat Sheet
+Requirements Checklist
+Common Mistakes
+Senior-Level System Design Thinking
+Final 5-Minute Cheat Sheet
+Closing
+1. Universal Interview Framework
+Use roughly this sequence for almost every system-design interview:
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+7. 
+8. 
+9. 
+10. 
+11. 
+12. 
+13. 
+14. 
+15. 
+16. 
+17. 
+18. 
+19. 
+20. 
+21. 
+22. 
+23. 
+1 / 24
+1. Clarify requirements
+2. Estimate scale
+3. Define API
+4. Define data model
+5. Draw high-level architecture
+6. Explain critical flows
+7. Identify bottlenecks
+8. Deep dive
+9. Reliability / failure handling
+10. Trade-offs
+A strong answer is breadth first → then depth. Do not open by drawing Kafka, Redis, Cassandra,
+Kubernetes.
+1.1 Clarify Requirements
+Functional — ask what users actually need to do. T witter example: post tweet, follow/unfollow, read
+home timeline, view profile timeline. Explicitly de-scope search, ads, recommendations, DMs,
+analytics, and moderation unless the interviewer asks.
+Non-functional — clarify: scale, latency, availability, consistency, durability, global or single-region,
+read/write ratio, real-time or not.
+Example targets:
+Timeline latency: < 200 ms
+Availability: 99.99%
+Tweets must not be lost
+Timeline can be eventually consistent
+1.2 45-Minute Pacing Template
+Most failed interviews are pacing failures, not knowledge failures. Gate yourself:
+Time Activity
+0–5 Functional + non-functional requirements, de-scope
+5–8 Estimation (QPS, storage, machine count)
+8–13 API + data model
+13–20 High-level architecture + core flows
+20–35 Deep dive on the hardest part of this problem
+35–42 Failure modes, scaling, trade-offs
+42–45 Summary: main trade-off, risks, next step at 10×
+If a phase overruns, say what you're skipping and move on.
+2. Back-of-the-Envelope Estimation
+You rarely need perfect numbers. You need to show that architecture decisions are grounded in scale.
+2 / 24
+2.1 Useful Numbers
+1 day = 86,400 s ≈ 10⁵ s. Pick the 10⁵ approximation and stay consistent:
+Daily volume ≈ Average QPS
+1M/day 10
+100M/day 1,000
+1B/day 10,000
+(Exact values are ~16% higher: 11.6, 1,157, 11,574 — the approximation is fine.)
+Peak QPS ≈ Average × 3–10.
+2.2 Latency Numbers Worth Knowing
+Operation Order of magnitude
+RAM access ~100 ns
+SSD random read ~100 µs
+HDD seek ~10 ms
+Same-DC network RTT ~0.5 ms
+Cross-AZ RTT ~1–2 ms
+Cross-continent RTT ~70–150 ms
+Redis GET (same DC) < 1 ms
+Indexed SQL read ~1–10 ms
+The cross-continent number decides most multi-region debates: any synchronous cross-region
+coordination costs ~100 ms per round trip on the hot path.
+2.3 QPS
+100M DAU × 20 timeline requests/day = 2B/day
+2B / 10⁵ ≈ 20K average QPS
+Peak ≈ ×5 ≈ 100K QPS
+2.4 Storage
+Storage/day = objects/day × average object size.
+10M tweets/day × 1 KB ≈ 10 GB/day ≈ 3.65 TB/year
+Media usually dominates storage.
+2.5 Bandwidth
+Bandwidth = QPS × response size.
+100K QPS × 50 KB ≈ 5 GB/s ≈ 40 Gbps
+3 / 24
+This is where CDN becomes important.
+2.6 Cache Sizing
+1B objects, 20% of keys serve 80% of traffic, 1 KB each
+Cache the hot 20%: 200M × 1 KB ≈ 200 GB
+A distributed Redis cluster is reasonable.
+2.7 From Capacity to Machine Count
+Always finish estimation by converting to machines — it proves the numbers meant something:
+Stateless API at ~1K rps/node → 100K peak QPS ≈ 100 nodes plus headroom.
+WebSocket gateway at ~100K connections/node → 10M concurrent users ≈ 100 gateways.
+Redis at ~25–50 GB usable/node → 200 GB hot set ≈ 6–8 shards plus replicas.
+2.8 Cost Sanity Checks
+Egress often costs more than storage — CDN offload exists largely to cut origin egress. Cross-AZ and
+cross-region replication traffic is billed. Tier storage: hot (DB/SSD) → warm → object storage → cold
+archive.
+3. Generic Architecture
+A useful starting point for many systems:
+• 
+• 
+• 
+4 / 24
+                 ┌───────────────┐
+                 │    Clients    │
+                 └───────┬───────┘
+                         │
+                  DNS / Anycast
+                         │
+                ┌────────▼────────┐
+                │ Global Load     │
+                │ Balancer        │
+                └────────┬────────┘
+                         │
+                  API Gateway / LB
+                         │
+             ┌───────────▼───────────┐
+             │ Application Services  │
+             └─────┬─────┬─────┬─────┘
+                   │     │     │
+            ┌──────▼─┐ ┌─▼───┐ │
+            │ Redis  │ │ DB  │ │
+            │ Cache  │ │     │ │
+            └────────┘ └─────┘ │
+                               │
+                         ┌─────▼─────┐
+                         │ Kafka /   │
+                         │ Queue     │
+                         └─────┬─────┘
+                               │
+                     ┌─────────▼────────┐
+                     │ Async Workers    │
+                     └──────────────────┘
+Add only what the problem requires.
+4. Reusable Architecture Patterns
+Most interview questions are combinations of eight shapes:
+5 / 24
+# Pattern Shape Examples
+1 CRUD service client → API → cache → DB profiles, catalog, URL shortener
+2 Async processingAPI → DB → queue → workers email, image processing, analytics
+3 Fanout producer → queue → workers → many
+consumers
+T witter, notifications, small groups
+4 Shared log producer → ordered log → many readersT elegram channels, huge groups,
+Kafka itself
+5 Real-time
+connection
+client ↔ WS gateway ↔ service ↔ buschat, collaboration, games
+6 Media pipeline upload → storage → queue → processors →
+storage → CDN
+YouT ube, Netflix, Instagram
+7 Search source DB → CDC/Kafka → indexer →
+Elasticsearch → API
+any full-text search
+8 CQRS-like authoritative write model + denormalized
+read model
+timelines, dashboards, search
+indexes
+Use the shared log when fanout copies become too expensive. Never run full-text search on the
+primary transactional DB.
+5. Database Cheat Sheet
+Type Pick when you need Examples
+SQL transactions, constraints, relations,
+complex queries
+PostgreSQL, MySQL — orders, payments,
+inventory, users
+Key-value key → value at speed: sessions, config,
+cache, URL maps
+Redis, DynamoDB
+Wide-columnhuge scale, known access patterns, high
+write throughput
+Cassandra, DynamoDB, Bigtable
+Document flexible nested documents MongoDB
+Search
+engine
+full-text search, ranking, filters Elasticsearch / OpenSearch
+Object
+storage
+images, video, large files, backupsS3-style
+Secondary indexes on partitioned stores: a local index lives per-shard — queries on it scatter-
+gather across all shards. A global index is partitioned by the indexed value — fast lookups, but
+asynchronously consistent and an extra write. Know which one your "query by email" needs.
+6. Caching Cheat Sheet
+Common path: Application → Redis → (miss) → Database.
+6 / 24
+Strategies:
+Cache-aside (most common) — read: get / miss / load DB / set; write: update DB, then delete the
+key; next read repopulates.
+Write-through — writes go through the cache synchronously.
+Write-behind — cache flushes to DB asynchronously; fastest, real durability risk.
+Problems and answers:
+Stampede — a hot key expires and 100K requests hit the DB at once → request coalescing / single-
+flight locks, stale-while-revalidate, randomized (jittered) TTLs.
+Hot key — user:ronaldo overwhelms one Redis shard → local in-process cache, key replication,
+replicas, CDN, coalescing.
+Penetration — requests for nonexistent IDs always miss → negative caching, Bloom filter.
+Cache death — Redis dies, DB gets 100× traffic and dies too → replication/failover, local cache,
+rate limiting, request coalescing, load shedding.
+7. Kafka and Queue Cheat Sheet
+Why a queue (good answers): decouple producer and consumer, absorb spikes, async processing,
+retries, fanout, event streaming. Bad answer: "because the system is large."
+Mental model: topic → partitions. Order is guaranteed within one partition only.
+Partition key = the entity whose ordering matters: conversation_id, user_id.
+Consumer group: each partition is consumed by exactly one consumer in the group — parallelism is
+capped by partition count.
+At-least-once: a worker that crashes before ACK causes redelivery → consumers must be 
+idempotent.
+Slow consumer: lag grows → more partitions + consumers, batching, optimize the work,
+backpressure upstream.
+Kafka is not a database: great as event stream, buffer, replay, async communication; source-of-
+truth state lives elsewhere.
+8. Sharding and Replication
+Replication — the same data in multiple places: availability, read scaling, disaster recovery. Primary
++ read replicas.
+Sharding — different data on different machines: write and storage scaling.
+Shard keys: user_id, conversation_id, tenant_id, order_id. Good = high cardinality, even distribution,
+matches the access pattern. Bad = country when the US is 70% of traffic — one hot shard.
+Hash sharding:hash(key) % N distributes well, but changing N remaps nearly everything. Solutions:
+consistent hashing, logical shards (e.g. 4096 logical mapped onto 100 physical servers — grow by
+moving logical shards, never recomputing every record), directory-based routing.
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+7 / 24
+Live resharding / migration procedure (same recipe as schema migrations): dual-write old + new
+→ backfill history → verify (row counts, checksums) → cut reads over → cut writes over → retire the old
+path.
+Cross-shard queries: scatter-gather, or maintain a global index; avoid cross-shard transactions.
+9. Multi-Region Design
+Start by asking why: lower latency, disaster recovery, availability — or regulatory data residency,
+which pins data to a region regardless of latency and is frequently the real driver of home-region
+designs.
+Active-passive: Singapore ACTIVE → replication → US PASSIVE. Simple; failover takes time.
+Active-active: write anywhere. Hard because of conflicts, ordering, global uniqueness, replication lag.
+Conflict toolbox when two regions write the same key: last-write-wins (silently drops a write), version
+vectors (detect the conflict, app resolves), CRDT s (auto-merge, limited data types), application-level
+merge — or avoid the problem entirely with per-key single-writer ownership.
+Home region / data ownership — often the strong compromise: each user/conversation is owned
+by one region; writes route to the owner, reads replicate globally. Good for profiles, conversations,
+accounts.
+Global load balancer: GeoDNS / Anycast → nearest healthy region.
+Global unique username: two regions claim @alice simultaneously — global uniqueness requires
+coordination somewhere. Options: a central authority (simple, cross-region latency) or partition the
+namespace by hash(username) → owning region (scales while preserving uniqueness). Principle: global
+uniqueness requires global coordination or deterministic ownership.
+Region failure: health detection → global LB reroutes → failover on replicated data. Quantify RPO
+(how much data can we lose?) and RTO (how long can recovery take?).
+10. Consistency and Transactions
+Strong consistency — all reads after a write see it: payments, inventory, account balances.
+Eventual consistency — replicas briefly disagree: feeds, likes, view counts, analytics.
+CAP: during a network partition, choose consistency or availability. Never say "this database is CP"
+without naming the operation and failure scenario.
+PACELC: if Partitioned → A vs C; Else (normal operation) → Latency vs Consistency. The else-half is
+what most multi-region design debates are actually about — see the ~100 ms cross-region RTT in §2.2.
+Idempotency: client sends Idempotency-Key: abc123; the server stores key → result; retries return the
+same result.
+Optimistic concurrency:UPDATE item SET ... WHERE id = ? AND version = 5 — zero rows updated
+means someone else changed it.
+8 / 24
+Pessimistic locking:SELECT ... FOR UPDATE — useful when conflicts are frequent, reduces
+concurrency.
+Distributed transactions: avoid two-phase commit unless you truly need global atomicity. Prefer a 
+saga: Create Order → Reserve Inventory → Charge Payment → Create Shipment; on payment failure,
+compensate by releasing inventory.
+11. Reliability Patterns
+Timeout — every network call needs one: a hanging dependency piles up threads and kills your
+service too.
+Retry — retry transient failures only; never retry invalid requests, auth failures, or permanent
+business errors.
+Exponential backoff + jitter — 100 → 200 → 400 → 800 ms, with jitter to break synchronized retries.
+Retry amplification — layered retries multiply: client ×3, gateway ×3, service ×3 = 27× load during
+an outage. Retry at one layer, cap attempts, use retry budgets (e.g. retries ≤ 10% of requests), honor 
+Retry-After.
+Circuit breaker — CLOSED → (failures) → OPEN → (after delay) → HALF-OPEN.
+Backpressure — producer at 100K/s, consumer at 50K/s → the queue grows forever. Options:
+autoscale consumers, throttle producers, drop low-priority work, batch, load shedding.
+Bulkhead — separate resource pools (payment / search / recommendation threads) so a
+recommendation failure can't exhaust everything and kill payments.
+Graceful degradation — recommendations down → show popular items; avatar service down →
+default avatar. The core keeps working.
+12. Security and Compliance
+Enough for interviews — one paragraph of coverage prevents the "you never mentioned auth" ding.
+Edge: TLS everywhere, WAF, rate limiting. Authenticate at the gateway — OAuth2/OIDC, short-lived
+access tokens with rotating refresh tokens.
+Internal: pass verified identity to services via signed headers or mTLS; authorize per service (roles/
+policies); never trust client-supplied IDs — always check the caller owns the resource (IDOR).
+Data: encrypt PII at rest, tokenize where possible, collect the minimum. Secrets live in a secret
+manager / environment injection — never in code, configs, logs, or URLs.
+Compliance: data residency (see §9), retention and deletion (right-to-be-forgotten means deletes
+must actually propagate — including caches and backups policy), audit logs for sensitive actions, PCI
+scope isolation for card data.
+9 / 24
+13. Architecture Pattern Recognition
+When you receive a question, classify it — then jump to the matching walkthrough in §14:
+Type Examples Think
+Feed T witter, Instagram,
+Facebook
+fanout, timeline store, ranking, celebrity, cursor
+pagination
+Messaging WhatsApp, T elegram,
+Slack
+WebSocket, persistence, ordering, delivery, offline,
+groups
+Media Netflix, YouT ube, TikT okobject storage, transcoding, segments, CDN, adaptive
+bitrate
+Scarce inventoryTicketmaster, hotels,
+airlines
+concurrency, reservation, expiration, strong consistency,
+idempotency
+Location Uber, Google Maps, Yelpgeo index, location updates, nearby search, routing
+Large async
+pipeline
+crawler, notifications,
+metrics
+Kafka, workers, partitioning, retry, DLQ, backpressure
+14. Top 20 System Design Questions
+Each walkthrough composes the building blocks from §4–§12.
+14.1 Design a URL Shortener
+Examples: TinyURL, bit.ly, t.co.
+Requirements: POST long URL → short URL; GET short URL → redirect. Optional: custom alias,
+expiration, analytics.
+API:
+POST /urls
+{ "url": "https://example.com/very/long/url" }
+→ { "short_url": "https://sho.rt/aZ91B" }
+GET /aZ91B → 301 or 302 redirect
+Data model:ShortURL(short_code, long_url, created_at, expires_at, user_id). The primary access
+pattern is short_code → long_url, so a KV-style datastore fits well.
+ID generation:
+Auto-increment + Base62 — encode a sequence with [a-zA-Z0-9]; 62⁶ ≈ 56.8B combinations. 
+Caveat: sequential codes are enumerable — anyone can walk the space and scrape every
+mapping. Permute/obfuscate the bits or prefer random codes if that matters.
+Random Base62 — generate, INSERT IF NOT EXISTS, retry on collision.
+Snowflake — when generating IDs across many regions/machines.
+Read flow: Client → CDN/LB → Redirect Service → Redis → (miss) → Database. Cache shortCode →
+longURL.
+• 
+• 
+• 
+10 / 24
+Scaling: heavily read-dominated — cache hot URLs, shard by hash(short_code), read replicas, edge/
+CDN redirect.
+Follow-ups:
+Why Base62? Short, human-friendly encoding.
+301 or 302? 301 = permanent: browsers/CDNs cache it, fewer hits on your service, but less
+analytics visibility and hard to change a mapping later. 302 = temporary: every request hits you —
+better analytics and control.
+Shard key?hash(short_code).
+14.2 Design a Distributed Rate Limiter
+Goal: enforce limits like 100 requests/minute/user or 10K requests/sec/API key.
+Algorithms:
+Algorithm Idea Trade-off
+Fixed window counter per time windowboundary burst (2× at window edges)
+Sliding log store every timestamp exact, memory-expensive
+Sliding window
+counter
+weight current + previous
+window
+good compromise
+T oken bucket capacity + refill rate allows controlled bursts — best general-
+purpose answer
+T oken bucket:
+capacity = 100, refill = 10 tokens/sec
+if tokens >= cost: tokens -= cost; allow
+else: reject
+Architecture: Client → API Gateway → Rate Limiter → Redis Cluster → Service. State per key
+(userId:api): tokens, last_refill_timestamp.
+Atomicity: naive GET tokens / decrement / SET tokens races — concurrent requests overshoot. Use a
+Redis Lua script (or MULTI/EXEC) so read → refill → decrement → write is one atomic operation.
+Response behavior: reject with 429 Too Many Requests + Retry-After so clients back off instead
+of hammering.
+Performance: if exactness isn't required, gateway nodes can keep a small local token cache with
+periodic sync — trading a strict limit for latency, the same trade-off as regional quotas below.
+Multi-region: a single global counter puts cross-region latency on every request. Prefer quota
+allocation — global 1000/sec split as Singapore 300, US 400, EU 300, enforced locally and rebalanced
+periodically. Trade-off: exact global limit vs low latency + availability.
+Failure behavior: if Redis dies, fail-open or fail-closed? Payments/security APIs → fail closed. Normal
+consumer traffic → often fail open.
+• 
+• 
+• 
+11 / 24
+14.3 Design Twitter / X
+Core problem: feed generation. Requirements: post tweet, follow user, read home timeline, read
+user timeline.
+Architecture: T weet API → T weet DB → Kafka → Fanout Workers → Timeline Store (Redis) → Timeline
+API.
+Data:Tweet(tweet_id, author_id, content, media_ids, created_at); Follow(follower_id,
+followee_id).
+Timeline approaches:
+Fanout-on-read — on feed open: get followees → get their recent tweets → merge + rank. Cheap
+writes, very expensive slow reads.
+Fanout-on-write — on post: tweet → Kafka → get followers → write tweet ID into each follower's
+timeline. Reads are a single GET timeline:{userId} — very fast. Problem: a celebrity with 100M
+followers causes enormous write amplification.
+Hybrid — usually the strongest interview answer. Normal users: fanout-on-write. Celebrities:
+fanout-on-read. Reading = precomputed timeline + celebrity recent tweets, merged and ranked.
+Timeline storage: store tweet IDs, not full tweets — timeline:user123 = [tweet91, tweet82, ...];
+hydrate contents from cache.
+Pagination: cursor-based, never OFFSET 100000 (large offsets are expensive and unstable). The
+cursor must be unique and orderable:created_at alone skips or duplicates rows on timestamp
+ties. Use a composite cursor —
+WHERE (created_at, id) < (:cursor_ts, :cursor_id)
+ORDERBY created_at DESC, idDESCLIMIT50
+— or cursor on a Snowflake-style ID alone, since it is time-ordered and unique.
+Biggest deep dive — "What happens when Ronaldo posts?" Hot key, follower-list partitioning,
+Kafka partitions, fanout parallelism, hybrid pull, backpressure, worker lag.
+14.4 Design Instagram
+Core problems: media storage, feed, CDN.
+Upload flow: Client → Upload Service → pre-signed URL → Object Storage → Media Processing
+Queue → resize/compress → Object Storage → CDN. Don't proxy large media through application
+servers — let clients upload straight to object storage.
+Metadata:Post(post_id, user_id, caption, media_url, created_at) in the DB; binary media in object
+storage. Never store large blobs in normal relational tables.
+Feed: same push/pull/hybrid pattern as T witter.
+CDN: origin storage → edge → user; cache key includes image ID + resolution + format.
+Follow-up quick answers:
+Resize? Async workers generate a fixed set of variants on upload.
+Huge video upload? Chunked + resumable upload, assemble server-side (see 14.12).
+Duplicate uploads? Content hash before storing.
+• 
+• 
+• 
+• 
+• 
+• 
+12 / 24
+Stories expiry? TTL field on the post; feed queries filter expired; an async purge job deletes the
+media.
+14.5 Design Facebook News Feed
+T witter with much heavier ranking.
+Pipeline: User Action → Post DB → Event Bus → Candidate Generation → Ranking → Feed Store.
+Candidates come from friends, groups, pages, recommendations, ads. Ranking = candidate features +
+user features → ML model → score.
+Two-stage ranking: millions of possible posts → cheap candidate retrieval (~1K) → expensive model
+→ top 50. Never run the expensive model over everything.
+14.6 Design WhatsApp
+Core problems: persistent connections, delivery, ordering, offline messages.
+Architecture:
+Alice ↔ WebSocket ↔ Gateway A → Message Service → Message Store
+                                      ↓
+                               Routing Service → Gateway B ↔ WebSocket ↔ Bob
+Why WebSocket: bidirectional client ↔ server — messages, typing indicators, presence, read
+receipts.
+Message flow: Alice sends M1 → Message Service assigns (conversation_id, seq) → persist → ACK
+Alice → find Bob's gateway → deliver → Bob ACK → mark delivered. Persist before acknowledging
+the sender if durability matters.
+Ordering: ordering is owned by the sequencer, not the pipe. The Message Service assigns a per-
+conversation monotonic sequence number at persist time; clients render by seq and detect gaps. If
+the pipeline includes a Kafka hop, partition by conversation_id so transit preserves the order — but
+the sequence number is the source of truth, not partition ordering.
+Offline: store as undelivered; on reconnect Bob fetches everything after his last seq.
+Delivery semantics: at-least-once + deduplication by (conversation_id, seq), rather than attempting
+true distributed exactly-once.
+Group chat: small groups → server fanout (1 incoming → N deliveries). Large groups make per-
+member copies expensive — which leads to T elegram-style designs.
+14.7 Design Telegram
+Key distinction: 1:1 chat, small groups, huge groups, and broadcast channels should not use identical
+fanout.
+1:1 — same model as WhatsApp.
+• 
+13 / 24
+200K-member group — do NOT copy each message into 200K inboxes. Keep a shared ordered log:
+GroupMessageLog(group_id, sequence_number, message); each user tracks last_read_sequence; reading
+= fetch messages after seq N.
+Multi-million-subscriber channel — ordered message log → CDN/cache → subscribers pull. Much
+cheaper than millions of writes per post.
+Fanout decision ladder:
+2-person chat   → push delivery
+small group     → push/fanout
+huge group      → shared log + notify
+massive channel → pull from shared log
+Global storage: each conversation has a home region; writes route there, replicate asynchronously
+elsewhere. Simple ordering and ownership, at the cost of cross-region latency for remote writers.
+14.8 Design YouTube
+Three systems: upload, video processing, streaming.
+Upload pipeline: Client → Upload Service → Object Storage → Kafka → Transcoding Workers →
+multiple resolutions → Object Storage → CDN.
+Why transcode: the 4K 100 Mbps original is unplayable for most clients. Generate 4K/1440p/1080p/
+720p/480p/360p in codecs like H.264, VP9, AV1.
+Adaptive bitrate: split video into ~4s segments, each at multiple bitrates; the client picks per
+network conditions (HLS/DASH-style).
+Seek: jumping to 1:35:00 does not download the file — the manifest maps time → segment; the client
+requests the segment near that timestamp.
+CDN: viewer → nearest edge → (miss) regional cache → origin. Popular content stays near viewers.
+14.9 Design Netflix
+Same shape as YouT ube, different workload: a limited curated catalog with extreme viewing traffic —
+so Netflix can aggressively pre-encode, pre-position, pre-cache.
+Playback: App → Control-Plane API (playback authorization, manifest) → CDN serves video chunks. 
+Separate the control plane from the data plane — the API should never stream video bytes.
+Adaptive streaming: shift 720p ↔ 1080p ↔ 4K as the network changes.
+Follow-up — seek to 1:34:20? Manifest maps time → segment; client requests that segment from
+the CDN.
+14.10 Design Uber / Grab
+Core: real-time location, nearby search, driver-rider matching.
+Architecture: Driver App → (location updates) → Location Service → Geo Store; Rider → Matching
+Service → nearby drivers → Dispatch.
+14 / 24
+Driver location: pings every few seconds = enormous write volume, and you rarely need a durable
+write per ping. Current position → in-memory/Redis-style geo store; history → Kafka → async storage.
+Geospatial index: Geohash, S2, H3, or quadtree — convert lat/lng into cells, then search the current
+cell + neighbors.
+Matching: beyond "nearest" — ETA, driver status, vehicle type, surge, acceptance rate, traffic,
+fairness.
+Concurrency: two riders must not reserve one driver — compare-and-set the driver status AVAILABLE
+→ RESERVED; only one request wins.
+14.11 Design Google Maps
+Major systems: map rendering, search, routing, traffic.
+Map tiles: never ship the whole map — a tile pyramid per zoom level; the client requests visible tiles;
+tiles are highly CDN-cacheable.
+Routing: the road network is a graph (intersection = vertex, road = edge; weights = travel time,
+distance, traffic, tolls). Conceptually Dijkstra/A* plus hierarchical preprocessing; at planetary scale,
+partition and preprocess the graph.
+Traffic: aggregate device location updates + road sensors + historical data to estimate edge travel
+times.
+14.12 Design Dropbox / Google Drive
+Core: upload, sync, versioning, large files.
+Upload: never push 10 GB in one request — chunk it; each chunk retries independently and uploads
+are resumable.
+Metadata:File(file_id, owner_id, name, parent_id, version, size) + per-version chunk hash list in
+the DB; binary content in object storage.
+Deduplication: SHA-256 per chunk; existing chunks are reused — great when versions share most
+content. Fixed-size chunks break dedup on inserts (every later boundary shifts); content-
+defined chunking (rolling-hash boundaries) keeps unchanged chunks identical across versions.
+Sync: client keeps last_sync_cursor; server exposes GET /changes?cursor=x. Never rescan every file
+on reconnect.
+Conflicts: two devices edit the same version → last-write-wins, a conflict copy, or application-level
+merge.
+14.13 Design Google Search
+Major systems: crawler, indexer, query serving, ranking.
+Pipeline: Internet → Crawler → Document Processing → Indexer → Inverted Index → Search Servers.
+Inverted index:
+15 / 24
+D1: system design interview     system → [D1, D2]
+D2: system architecture         design → [D1]
+Query: fetch posting lists for each term, intersect, rank.
+Sharding: by document — scatter the query to all shards → local top-K → merge. (T erm-based
+sharding avoids scatter but concentrates hot terms and complicates multi-term intersection; document
+sharding is the usual default.)
+14.14 Design Amazon / E-commerce
+Core entities: product, inventory, cart, order, payment.
+Architecture: don't build one mega-service. Once scale demands it, split into independent domains:
+Product, Cart, Inventory, Order, Payment (and Shipping).
+Cart: tolerates eventual consistency; access is user_id → items — Redis/NoSQL works well; persist if
+cart durability matters.
+Inventory: consistency-sensitive. Prevent two buyers both getting the last unit with a conditional
+decrement:
+UPDATE inventory SET stock = stock - 1
+WHERE product_id = ? AND stock > 0;
+Only one succeeds. Note this serializes on the row — under flash-sale contention on a hot SKU,
+protect it with admission control (waiting room / queue — see 14.16) rather than letting everyone
+hammer one row.
+Order flow: Create Order → Reserve Inventory → Charge Payment → Confirm. Distributed failures
+make this tricky — use a saga with compensation (payment fails → release inventory).
+14.15 Design a Payment System
+One of the most important senior-level problems. Core concepts: idempotency, ledger, consistency,
+retry, reconciliation.
+Request:
+POST /payments
+Idempotency-Key: order-82911
+A retry with the same key maps to the same logical payment — never charge twice.
+Data model:Payment(payment_id, order_id, idempotency_key, amount, currency, status) with a state
+machine: PENDING → AUTHORIZED → CAPTURED, plus FAILED and REFUNDED — only legal transitions
+allowed.
+Ledger: never rely solely on a mutable balance = 100. Keep immutable double-entry records — 
+Account A −$100 / Merchant B +$100; invariant: sum(debits) = sum(credits).
+External processor: a timeout does not mean failure — the charge may have succeeded and the
+response was lost. Retrying blindly double-charges. Solution: idempotency + query payment status +
+reconciliation.
+16 / 24
+Reconciliation: a periodic job compares our records vs the provider's — this catches inconsistencies
+from rare distributed failures.
+14.16 Design Ticketmaster
+Core problem: extreme traffic × scarce inventory (100K seats, 10M buyers).
+Chain: Users → Waiting Room → Rate Limiter → Ticket Service → Seat Inventory → Payment.
+Waiting room: don't let 10M users hit the seat DB — admit a controlled number per second.
+Seat reservation: states AVAILABLE → HELD → SOLD. Choosing a seat: AVAILABLE → HELD with a ~5-
+minute expiration; payment success → SOLD; timeout → back to AVAILABLE.
+Prevent double booking:
+UPDATE seat SET status = 'HELD'
+WHERE seat_id = ? AND status = 'AVAILABLE';
+One buyer wins.
+Follow-up — Redis lock or DB transaction? For source-of-truth inventory, database conditional
+writes are usually safer; distributed locks add complexity and still require correct DB state.
+14.17 Design a Notification System
+Channels: push, email, SMS, in-app.
+Architecture: Producer Services → Notification API → Kafka → per-channel workers (push/email/SMS)
+→ providers.
+Why a queue: decouple producers from delivery, absorb spikes, enable retries and fanout — "Order
+Completed → Kafka → Notification Service" beats the order service synchronously sending email.
+Preferences: check per-user, per-category flags (marketing_email, payment_push, security_sms)
+before sending.
+Retry: exponential backoff on transient provider failures; eventually a Dead Letter Queue.
+Deduplication: notification_id; workers check whether it was already processed.
+Provider failover: run multiple SMS/email providers with health-based routing — providers do go
+down.
+User protection: per-user rate limits and digest/batching so users aren't spammed; a cross-channel
+policy so one event doesn't fire push and email and SMS unless configured.
+14.18 Design a Web Crawler
+Loop: discover URLs → download → parse → deduplicate → repeat.
+Architecture: Seed URLs → URL Frontier → Crawler Workers → Internet → Parser → Dedup → back to
+Frontier.
+17 / 24
+URL Frontier: not a basic queue — needs priority, per-domain throttling, retry, and recrawl
+scheduling.
+Politeness: never hit one domain 10K times/sec — per-domain scheduling; respect robots.txt and
+crawl delays.
+Deduplication: normalized-URL hash + content hash; at enormous scale a Bloom filter cuts memory
+(caveat: false positives mean some legitimate URLs are permanently skipped — usually an acceptable
+trade).
+Crawler traps: infinite URL spaces — calendars, session-ID URLs, faceted filters. Defend with URL
+normalization, depth limits, and per-domain page budgets.
+14.19 Design a Distributed Job Scheduler
+Examples: cron service, Airflow-like scheduler, background jobs.
+Components: Job API → Job DB → Scheduler(s) → Queue → Workers.
+Job data: job_id, schedule, payload, status, next_run_time — with an index on next_run_time; due
+jobs = WHERE next_run_time <= now().
+Multiple schedulers: both see the same due job → both execute. Claim atomically: conditional
+update PENDING → CLAIMED, or batch-claim with
+SELECT... WHERE next_run_time <= now() AND status = 'PENDING'
+FORUPDATESKIPLOCKED;
+so concurrent schedulers don't contend on the same rows.
+Worker leases: a lease (e.g. 60s) lets another worker retry if the holder dies. But slow ≠ dead: a
+GC-paused worker can wake up after expiry and finish — now the job ran twice. Fixes: heartbeat to
+extend the lease while running, and a fencing token (monotonic per job) checked when applying side
+effects so stale attempts are rejected.
+Execution semantics: at-least-once → jobs must be idempotent regardless.
+Misfire policy: the system was down when a job was due — fire once now, fire all missed runs, or
+skip? Make it per-job configuration.
+14.20 Design a Metrics / Logging System
+Examples: Datadog, Prometheus-style platforms, CloudWatch. Core challenge: massive write
+throughput.
+Pipeline: Applications → Agents → Ingestion → Kafka → Stream Processing → Time-Series Storage →
+Query/Dashboards.
+Metric shape:
+http_requests_total{service="payment", region="sg"}
+timestamp + metric + tags + value
+Cardinality: putting user_id / request_id / transaction_id in labels can create billions of time series —
+the classic monitoring follow-up.
+18 / 24
+Aggregation: downsample over time — 1s raw → 1-minute aggregates after 7 days → 1-hour after 3
+months. Reduces storage massively.
+15. Quick Patterns for Other Common Questions
+Compact treatments of frequently asked designs not in the top 20.
+Typeahead / Autocomplete
+Precompute top-K completions per prefix (trie or prefix table), serve from cache/edge — the ~50 ms
+latency budget means no DB on the hot path. Log queries asynchronously and rebuild the prefix data
+periodically.
+Leaderboard
+Redis sorted set: ZADD on score, ZREVRANGE for top-N, ZRANK for a user's position. Shard by
+leaderboard; snapshot to a DB for durability. For huge boards, keep the top-K exact and serve
+approximate percentiles for the long tail.
+Ad-Click / Event Aggregation
+Kafka → windowed stream aggregation → store. "Exactly-once" in practice = at-least-once +
+idempotent sinks/checkpoints. Handle late events with watermarks and allowed lateness; the standard
+pattern is real-time approximate counts + batch reconciliation for billing-grade numbers.
+Distributed Lock
+Redis SET key val NX PX ttl, or an etcd/ZooKeeper lease. A lock alone is not correctness: TTL
+expiry + a paused holder = two owners. Pair with fencing tokens validated by the protected resource
+— or skip the lock and use conditional writes on the datastore itself.
+Collaborative Editing
+OT: a central sequencer transforms concurrent ops — simpler when clients are online. CRDT s:
+commutative merges, offline-friendly, more metadata. Either way: presence + per-document session
+routing over sticky WebSockets.
+Order Book / Matching Engine
+Sequence all orders for a symbol through one ordered log (a Kafka partition or raft log); a single-
+threaded in-memory matcher per symbol applies price-time priority — a deterministic state machine.
+HA = replicate the log and replay; recovery = snapshot + replay. Market data, clearing, and
+notifications consume downstream asynchronously. The money side is a payment-system problem:
+double-entry ledger, idempotent transfers, hot/cold separation, continuous reconciliation.
+16. What to Deep Dive On
+Choose the part that makes this problem unique.
+19 / 24
+System Best deep dive
+URL Shortener ID generation
+Rate Limiter distributed counters
+T witter fanout
+Instagram media + feed
+Facebook ranking/feed
+WhatsApp messaging/ordering
+T elegram huge groups/channels
+YouT ube transcoding/CDN
+Netflix streaming/CDN
+Uber geo/matching
+Google Maps routing
+Dropbox chunking/sync
+Search inverted index
+E-commerce inventory
+Payments idempotency/ledger
+Ticketmaster contention
+Notifications retry/fanout
+Web Crawler frontier
+Job Scheduler leases/claiming
+Metrics write volume/cardinality
+T ypeahead prefix precompute
+Matching engine sequencing/determinism
+Do not deep-dive into Redis internals during an Uber question unless the interviewer takes you there.
+17. Follow-Ups and What-If Quick Answers
+The rapid-fire bank. Fuller treatments live in §5–§11.
+Database
+Why SQL? Transactions, constraints, relational queries — never "SQL is faster."
+Why NoSQL? Simple access pattern, huge horizontal scale, high write throughput, easy
+partitioning.
+How do you shard? Shard key, distribution, routing, resharding, hot shards, cross-shard queries
+(§8).
+One shard is hot? Better shard key, split the logical shard, replicate reads, cache, special-case
+celebrity entities.
+• 
+• 
+• 
+• 
+20 / 24
+Cache and Kafka
+Redis dies? The DB gets 100× and dies too — protect it: replication/failover, local cache, rate
+limiting, coalescing, load shedding (§6).
+Invalidation? Write DB → delete key → next read repopulates.
+Preserve ordering? Same entity → same partition (§7).
+Consumer crashes? Redelivery → idempotent processing.
+Consumer slow? Lag grows → more partitions/consumers, batch, optimize, backpressure.
+Infrastructure
+How does a load balancer scale? Hierarchy: DNS/Anycast → regional LB fleets → instances. No
+single box takes global traffic.
+API gateway does what? Authentication, TLS termination, routing, rate limiting, request
+validation, logging. No business logic.
+Does every WebSocket go through the API gateway? Not necessarily — long-lived
+connections often use a dedicated WebSocket gateway fleet behind the global LB.
+IDs and Pagination
+IDs: UUID, Snowflake (timestamp + machine/region + sequence → distributed generation, rough
+time ordering), DB sequences, random.
+Pagination: cursor, never large OFFSET. The cursor must be unique + orderable: (created_at,
+id) composite, or a Snowflake ID alone (§14.3).
+Hot Entities
+"100M followers" → hot key, fanout explosion, partition skew, cache hotspot → hybrid push/pull.
+"Beyoncé tickets, traffic ×100" → CDN, cache, rate limiting, waiting room, queue, autoscaling,
+backpressure, load shedding.
+What If…
+Traffic ×10? Horizontal scaling, cache, partition the DB, queue expensive work, CDN.
+Traffic ×100 instantly? Rate limiting, waiting room, queue, backpressure, load shedding —
+autoscaling alone is too slow.
+Database too large? Partition/shard, archive old data, hot/cold split, read replicas.
+Reads dominate? Cache, read replicas, denormalized read model, CDN.
+Writes dominate? Sharding, batching, append logs, async processing, distributed write store.
+Dependency is slow? Timeout, circuit breaker, fallback, bulkhead.
+Message processed twice? Idempotent consumer, deduplication key, conditional write.
+Messages out of order? Partition by entity, sequence/version numbers, reorder or drop stale.
+A region fails? Health detection, global LB rerouting, replicated data, failover strategy — then
+quantify RPO and RTO (§9).
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+21 / 24
+18. Technology Selection Cheat Sheet
+Requirement Common choice
+Strong transactions PostgreSQL / MySQL
+High-scale KV DynamoDB
+Huge distributed writes Cassandra
+Cache Redis
+Full-text search Elasticsearch
+Event streaming Kafka
+Simple async task queue SQS-like queue
+Large media/files Object storage
+Static/media distribution CDN
+Real-time communication WebSocket
+Geospatial lookup H3/S2/Geohash + geo store
+Time-series TSDB / distributed column store
+The name matters less than explaining why its properties match the access pattern.
+19. Requirements Checklist
+Open with: "Before getting into the architecture, I'd like to clarify the core use cases and scale."
+Then ask: Who are the users? What are the 2–3 core actions? How many DAU? Read/write ratio?
+Latency requirement? Availability requirement? Consistency requirement? Single region or global?
+Historical data needed? What's explicitly out of scope?
+2–4 minutes of questions is enough — not 10.
+20. Common Mistakes
+Buzzword architecture — drawing Client → Kafka → Redis → Cassandra → Elasticsearch
+immediately, without explaining why.
+Demanding everything — strong consistency + 99.99999% availability + zero latency + infinite
+scale simultaneously. System design is trade-offs.
+Kafka for synchronous request-response — GET user profile → Kafka → consumer is almost
+never necessary.
+Distributed transactions across every service — expensive; prefer clear ownership.
+"NoSQL because it scales" — instead explain the access pattern, partition key, consistency
+requirement, and query limitations.
+Ignoring failure — after the happy path, ask what fails? DB, Redis, Kafka, worker, region, external
+provider, network.
+1. 
+2. 
+3. 
+4. 
+5. 
+6. 
+22 / 24
+21. Senior-Level System Design Thinking
+A senior answer regularly discusses four things:
+Ownership — which component owns this data? Payment Service owns payment state; other systems
+consume a PaymentCompleted event instead of writing the payment DB.
+Boundaries — avoid massive services: Order, Inventory, Payment, Shipping — each domain with clear
+responsibility.
+Failure — for every remote call: can it fail? time out? return twice? arrive out of order?
+Trade-offs — say "I'm choosing eventual consistency here because stale counts for a few seconds are
+acceptable and this avoids cross-region coordination." That is much stronger than "I'll use Cassandra."
+22. Final 5-Minute Cheat Sheet
+If you remember nothing else, remember this.
+Opening: functional requirements → non-functional requirements → scale. Then API → data model →
+high-level architecture. Then identify the hardest part of THIS problem and deep dive there.
+Storage decision: transactions → SQL · huge KV → DynamoDB/Cassandra · search → Elasticsearch ·
+files → object storage · cache → Redis.
+Scaling: reads → cache/replicas/CDN · writes → shard/queue/batch · huge objects → object storage ·
+async → queue/Kafka · real-time → WebSocket · global → global LB + regional services.
+Distributed systems, always: timeout, retry (+ budget), idempotency, duplicates, ordering,
+backpressure, partial failure.
+Always ask:
+Database — access pattern? partition key? can it get hot? how do I reshard?
+Kafka — partition key? need ordering? duplicates? consumer falls behind?
+Cache — TTL? invalidation? stampede? hot key? what if it dies?
+Multi-region — where is the authoritative write? replication? consistency? region dies?
+Trigger words:
+Payments / inventory → idempotency, atomic update, state machine, ledger, reconciliation.
+Celebrity → hot key, write amplification, hybrid push/pull.
+Flash sale → waiting room, rate limit, queue, reservation, atomic inventory.
+Senior closing script:
+"The main trade-off in this design is X versus Y . We optimize for X because the requirements say Y
+is acceptable. The largest remaining risks are A and B. If scale increased another 10×, I would
+next address C."
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+23 / 24
+23. Closing
+Universal Diagram to Memorize
+Adaptable to a surprisingly large number of questions:
+                            ┌──────────┐
+                            │ Clients  │
+                            └────┬─────┘
+                                 │
+                            Global LB
+                                 │
+                          ┌──────▼──────┐
+                          │ API Gateway │
+                          └──────┬──────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │      Service Layer       │
+                    └───┬────────┬────────┬────┘
+                        │        │        │
+                    ┌───▼──┐ ┌──▼───┐ ┌──▼─────┐
+                    │Redis │ │ DB   │ │ Object │
+                    │Cache │ │      │ │Storage │
+                    └──────┘ └──┬───┘ └────────┘
+                                │
+                              Kafka
+                                │
+                       ┌────────▼────────┐
+                       │ Async Workers   │
+                       └────────┬────────┘
+                                │
+                    ┌───────────▼────────────┐
+                    │ Search / Analytics /   │
+                    │ Notification / Fanout  │
+                    └────────────────────────┘
+Do not draw everything by default. Start minimal, then add components because a
+requirement forces you to.
+One Sentence to Remember
+A good system-design interview is not "Can I design the exact architecture used by Twitter?" It is:
+"Can I identify the requirements, find the bottleneck, make reasonable trade-offs, and
+explain how the system evolves as scale increases?"
+24 / 24
