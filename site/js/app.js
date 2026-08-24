@@ -21,7 +21,7 @@
     { id: 'dark',            name: 'Midnight',        bg: '#0f1116', accent: '#5b8cff' },
     { id: 'light',           name: 'Daylight',        bg: '#f6f7f9', accent: '#3b6ef5' },
   ];
-  const DEFAULT_THEME = 'gruvbox';
+  const DEFAULT_THEME = 'dark';
   const getTheme = () => {
     const t = localStorage.getItem(themeKey);
     return THEMES.some(x => x.id === t) ? t : DEFAULT_THEME;
