@@ -157,7 +157,7 @@ const REFERENCE = {
         <tr><td>n ≤ 1e5</td><td>O(n log n)</td><td>sort, heap, binary search, divide & conquer</td></tr>
         <tr><td>n ≤ 1e6</td><td>O(n)</td><td>one pass, two pointers, hashmap</td></tr>
         <tr><td>n ≥ 1e9</td><td>O(log n) / O(1)</td><td>binary search on answer, math, bit tricks</td></tr></table>
-      <p>A very large <code>n</code> (≈ 1e9+) usually means the "input" is <b>implicit</b> — a range or answer space to search over rather than an array you store — so the target drops to O(log n) or O(1); it's a strong hint, not a guarantee (a 1e9-element stream still gets processed in one O(n) pass). Amortized: a Python list append is O(1) amortized. Space includes the recursion stack — a DFS on a skewed tree is O(n) space even with no explicit structure. Graph algorithms are usually O(V + E).</p>` },
+      <p>A very large <code>n</code> (≈ 1e9+) usually means the "input" is <b>implicit</b> — a range or answer space to search over rather than an array you store — so the target drops to O(log n) or O(1); it's a strong hint, not a guarantee (a 1e9-element stream still gets processed in one O(n) pass). Amortized: a Python list append is O(1) amortized. Space includes the recursion stack — a DFS on a skewed tree is O(n) space even with no explicit structure. DFS and BFS traversals are O(V + E).</p>` },
 
     { id: 'datastructures', title: 'Data Structure Cheat Sheet', html: `
       <table><tr><th>Structure</th><th>Strengths</th><th>Watch out</th></tr>
@@ -443,9 +443,28 @@ return count</pre>
         for cand in (grow(i, i), grow(i, i+1)):   # odd, even
             if len(cand) &gt; len(best): best = cand
     return best</pre>
+      <h3>Cyclic sort / XOR — numbers in 1..n</h3>
+      <div class="mnemonic">🗣 <b>Say it:</b> Each value belongs at index value−1; swap everyone home, then the first misplaced slot names the missing/duplicate. Or XOR everything to cancel pairs.</div>
+      <pre># Cyclic sort: place a[i] at index a[i]-1 (values 1..n), O(n) time, O(1) space
+i = 0
+while i &lt; len(a):
+    j = a[i] - 1                      # target index for a[i]
+    if a[i] != a[j]:                  # not home and not a dup
+        a[i], a[j] = a[j], a[i]       # swap it home (don't advance)
+    else:
+        i += 1
+# now the first index where a[i] != i+1 is the missing/duplicate slot
+
+# XOR: single number where every other value appears twice
+missing = 0
+for x in a:
+    missing ^= x                      # pairs cancel, the lone value survives
+return missing</pre>
+      <p>XOR facts: <code>x^x=0</code>, <code>x^0=x</code>. Missing number in 0..n: XOR all indices and values together. Two unique numbers: XOR all, isolate the lowest set bit to split into two groups.</p>
       <h3>Matrix traversal — spiral order</h3>
       <div class="mnemonic">🗣 <b>Say it:</b> Peel the outer ring — top row, right col, bottom row, left col — then shrink the bounds inward.</div>
-      <pre>res = []
+      <pre>if not m or not m[0]: return []
+res = []
 top, bot = 0, len(m) - 1
 left, right = 0, len(m[0]) - 1
 while top &lt;= bot and left &lt;= right:
@@ -557,6 +576,7 @@ return res</pre>
         <tr><td>Cross-continent RTT</td><td>~70–150 ms</td></tr></table>
       <p>Any synchronous cross-region coordination costs ~100 ms per round trip on the hot path.</p>
       <h3>From capacity to machines</h3>
+      <p class="faint" style="font-size:12.5px">The per-node figures below are <b>illustrative starting assumptions</b>, not constants — real capacity depends on payload size, CPU cost per request, connection churn, and value size. State your assumption out loud and note you'd benchmark it for the actual workload.</p>
       <ul><li>Stateless API ~1K rps/node → 100K peak QPS ≈ 100 nodes + headroom</li>
         <li>WebSocket gateway ~100K conns/node → 10M users ≈ 100 gateways</li>
         <li>Redis ~25–50 GB usable/node → 200 GB hot set ≈ 6–8 shards + replicas</li></ul>
@@ -609,14 +629,14 @@ return res</pre>
       <ul>
         <li>Mental model: topic → partitions. <b>Order guaranteed within one partition only.</b></li>
         <li>Partition key = the entity whose ordering matters (<code>conversation_id</code>, <code>user_id</code>).</li>
-        <li>Consumer group: each partition consumed by exactly one consumer → parallelism capped by partition count.</li>
+        <li>Consumer group: within one group, each partition is assigned to at most one active consumer at a time → parallelism capped by partition count; other groups consume the same topic independently.</li>
         <li>Slow consumer: lag grows → more partitions + consumers, batching, optimize, backpressure.</li>
       </ul>
       <h3>Delivery semantics</h3>
       <ul>
         <li><b>At-least-once</b> (default): a worker that crashes before committing its offset causes redelivery → make consumers <b>idempotent</b>.</li>
         <li><b>At-most-once:</b> commit the offset before processing — no dupes, possible loss.</li>
-        <li><b>Exactly-once (EOS):</b> real, but <b>only within Kafka</b> — the idempotent producer plus transactions give atomic read-process-write across Kafka topics (what Kafka Streams uses). It does <b>not</b> extend to an external database or API on its own; end-to-end you still need an idempotent sink or the transactional-outbox pattern.</li>
+        <li><b>Exactly-once (EOS):</b> Kafka transactions atomically cover Kafka records <b>and</b> consumer offsets — atomic read-process-write across topics (what Kafka Streams uses). External sinks (a database, an API) require a transactional connector, an idempotent sink, or another coordination mechanism (e.g. the transactional-outbox pattern) for end-to-end exactly-once.</li>
       </ul>
       <p>Kafka <b>can</b> be an authoritative, durable event log — it's the backbone of event-sourcing and log-as-source-of-truth designs (retention can be infinite; log compaction keeps the latest value per key). The real caveat is that it's not a <b>queryable</b> store: you can't index or ad-hoc query it, so derive materialized read models (in a DB, cache, or search engine) for lookups.</p>
       <p class="srcnote"><b>Last reviewed:</b> 2026-08 · Kafka EOS &amp; transactions: <a href="https://kafka.apache.org/documentation/#semantics">kafka.apache.org — delivery semantics</a>.</p>` },
@@ -640,12 +660,12 @@ return res</pre>
         <li><b>Exponential backoff + jitter</b> — 100 → 200 → 400 → 800 ms.</li>
         <li><b>Retry amplification</b> — client ×3, gateway ×3, service ×3 = 27× load. Retry at one layer, cap attempts, use retry budgets (≤10%), honor <code>Retry-After</code>.</li>
         <li><b>Circuit breaker</b> — CLOSED → OPEN → HALF-OPEN.</li>
-        <li><b>Backpressure</b> — autoscale consumers, throttle producers, drop low-priority, load shedding.</li>
+        <li><b>Backpressure</b> — bound queues and in-flight concurrency; when full, slow or reject producers, pause consumption from upstream, and shed low-priority load. (Autoscaling adds capacity but is not itself backpressure — it's too slow to protect against a sudden spike.)</li>
         <li><b>Bulkhead</b> — separate resource pools so one failure can't exhaust everything.</li>
         <li><b>Graceful degradation</b> — recommendations down → show popular items; the core keeps working.</li>
       </ul>
       <h3>Security (one paragraph prevents the "you never mentioned auth" ding)</h3>
-      <p><b>Edge:</b> TLS everywhere, WAF, rate limiting; authenticate at the gateway (OAuth2/OIDC, short-lived access + rotating refresh tokens). <b>Internal:</b> pass identity via signed headers or mTLS; authorize per service; never trust client-supplied IDs (IDOR). <b>Data:</b> encrypt PII at rest, minimize collection, secrets in a secret manager. <b>Compliance:</b> data residency, right-to-be-forgotten (propagate deletes to caches/backups), audit logs.</p>` },
+      <p><b>Edge:</b> TLS everywhere, WAF, rate limiting; authenticate at the gateway (OAuth2/OIDC, short-lived access + rotating refresh tokens). <b>Internal:</b> pass identity via signed headers or mTLS; authorize per service; never trust client-supplied IDs (IDOR). <b>Data:</b> encrypt PII at rest, minimize collection, secrets in a secret manager. <b>Compliance:</b> data residency, audit logs, and right-to-be-forgotten — remove the data from live stores and caches immediately, let backups expire under the retention policy (don't rewrite immutable backups), keep a deletion tombstone/record of the request, and ensure a restore re-applies deletions so it can't resurrect deleted records.</p>` },
 
     { id: 'operations', title: 'Observability, Migrations & Data Movement', html: `
       <p>Naming these unprompted is a strong senior signal — they're what turns a happy-path diagram into something operable.</p>
@@ -689,17 +709,57 @@ small group     → push / fanout
 huge group      → shared log + notify
 massive channel → pull from shared log</pre>
       <h3>Payment System</h3>
-      <p>Idempotency key → never charge twice. State machine PENDING→AUTHORIZED→CAPTURED (+FAILED, REFUNDED). Immutable double-entry ledger (<code>sum(debits)=sum(credits)</code>). Processor <b>timeout ≠ failure</b> → idempotency + status query + reconciliation job.</p>
-      <p><b>Reconciliation</b> closes the gap between your ledger and the processor/bank's truth: ingest the processor's settlement report (file or API) on a schedule, then match each external transaction to a ledger entry by idempotency/processor reference. Classify the diffs — <i>matched</i>, <i>missing on our side</i> (processor charged, we never recorded → replay/repair), <i>missing on theirs</i> (we think it captured, they don't → re-query, then void), <i>amount/fee mismatch</i>. Auto-resolve the mechanical cases (fees, rounding, timing across a day boundary); queue the rest for manual review. This is also how you catch a timed-out charge that actually succeeded. Interviewers at fintechs specifically look for "I'd run daily reconciliation against the processor" — see Fintech in the behavioral deck.</p>
+      <p>State machine PENDING→AUTHORIZED→CAPTURED (+FAILED, REFUNDED). Immutable double-entry ledger (<code>sum(debits)=sum(credits)</code>). Idempotency key stops double charges; processor <b>timeout ≠ failure</b> → status query + reconciliation.</p>
+      <details class="deepdive"><summary>Deep dive: idempotency &amp; reconciliation</summary>
+      <p><b>Idempotency key</b> — do more than "have one":</p>
+      <ul>
+        <li><b>Claim it atomically</b> — <code>INSERT</code> the key into a table with a unique constraint <i>before</i> charging; a duplicate insert means a request already ran or is in flight → return its stored result (or make the caller wait/poll), never start a second charge.</li>
+        <li><b>Scope it</b> to <code>(customer, operation)</code>, not global — one customer's key must never collide with another's, and a "capture" key must not match a "refund" key.</li>
+        <li><b>Persist it with the state transition</b> — write the key and the resulting state/response in the <i>same</i> transaction, so a crash can't leave the charge done but the key unrecorded.</li>
+        <li><b>Reuse it at the processor</b> — pass the same idempotency key downstream so a retry to the processor doesn't double-charge there either.</li>
+      </ul>
+      <p><b>Reconciliation</b> is the final safety net: ingest the processor's settlement report (file or API) on a schedule, then match each external transaction to a ledger entry by idempotency/processor reference. Classify the diffs — <i>matched</i>, <i>missing on our side</i> (processor charged, we never recorded → replay/repair), <i>missing on theirs</i> (we think it captured, they don't → re-query, then void), <i>amount/fee mismatch</i>. Auto-resolve the mechanical cases (fees, rounding, timing across a day boundary); queue the rest for manual review. This is also how you catch a timed-out charge that actually succeeded. Interviewers at fintechs specifically look for "I'd run daily reconciliation against the processor" — see Fintech in the behavioral deck.</p>
+      </details>
       <h3>Ticketmaster — scarce inventory</h3>
-      <p>Users → Waiting Room → Rate Limiter → Ticket Service → Seat Inventory → Payment. Seat AVAILABLE→HELD→SOLD. Prevent double-booking with <code>UPDATE seat SET status='HELD', hold_expires_at=now()+'10 min' WHERE seat_id=? AND status='AVAILABLE'</code> — 1 row updated = you won the hold. DB conditional writes beat distributed locks for source-of-truth inventory.</p>
-      <p><b>Hold expiry</b> — don't trust a client to release a seat it abandoned. Store <code>hold_expires_at</code> and make expiry authoritative <b>at read time</b>: any query treats <code>status='HELD' AND hold_expires_at &lt; now()</code> as available, and the conditional purchase/hold write includes that clause so a stale hold is atomically reclaimed. A background sweeper (or Redis key-TTL / a delay queue firing at expiry) flips lapsed rows back to AVAILABLE for cleanliness and to refresh the UI — but correctness lives in the read/write predicate, not the sweeper, so a late sweep never lets two buyers hold the same seat. On successful payment, HELD→SOLD only <code>WHERE status='HELD' AND hold_expires_at &gt; now()</code>; if the hold lapsed mid-payment, refund/redirect rather than overselling.</p>
+      <p>Users → Waiting Room → Rate Limiter → Ticket Service → Seat Inventory → Payment. Seat AVAILABLE→HELD→SOLD, guarded by conditional writes (they beat distributed locks for source-of-truth inventory). Each hold gets an unguessable <code>hold_id</code> + <code>hold_expires_at</code>; expiry is authoritative in the write predicate, and the purchase must verify the same <code>hold_id</code>.</p>
+      <details class="deepdive"><summary>Deep dive: hold expiry &amp; the reclaim race</summary>
+      <p><b>Take/reclaim a hold</b> — generate a fresh unguessable <code>hold_id</code>, and win the row whether it's free or its previous hold has lapsed:</p>
+      <pre>UPDATE seat
+SET status = 'HELD',
+    hold_id = ?,                       -- new unguessable id
+    hold_expires_at = now() + interval '10 minutes'
+WHERE seat_id = ?
+  AND (status = 'AVAILABLE'
+       OR (status = 'HELD' AND hold_expires_at &lt;= now()));  -- reclaim lapsed
+-- 1 row updated = you own the hold</pre>
+      <p><b>Purchase</b> — must verify the <i>same</i> hold, not just "some HELD seat":</p>
+      <pre>UPDATE seat
+SET status = 'SOLD'
+WHERE seat_id = ?
+  AND status = 'HELD'
+  AND hold_id = ?                       -- the buyer's own hold
+  AND hold_expires_at &gt; now();          -- not lapsed
+-- 0 rows = your hold expired &amp; was reclaimed → refund/redirect, don't oversell</pre>
+      <p>Why the <code>hold_id</code>: without it, a late payment from the <i>previous</i> holder could sell a seat that already expired and was reclaimed by someone else. Checking only <code>status='HELD' AND hold_expires_at &gt; now()</code> passes even though the current hold belongs to the new buyer. The <code>hold_id</code> ties the sale to the exact hold that authorized it.</p>
+      <p>Expiry is authoritative <b>in the predicate</b>, so a lapsed hold is reclaimed atomically at write time. A background sweeper (or Redis key-TTL / delay queue) flipping lapsed rows back to AVAILABLE is only for cleanliness and UI freshness — a late sweep never causes a double-sell because correctness lives in the SQL above, not the sweeper.</p>
+      </details>
       <h3>Rate Limiter</h3>
-      <p><b>Token bucket</b> (capacity + refill) = best general-purpose. Atomicity: Redis Lua script for read→refill→decrement→write, keeping the check-and-decrement on one node. Reject with 429 + Retry-After.</p>
-      <p><b>Multi-region:</b> do <b>not</b> put a single synchronous global counter on the hot path — a cross-region round trip per request adds ~100 ms and creates a single point of failure. Instead: (a) <b>local limits</b> — each region enforces against its own Redis, so a global limit N is split as N/regions (simple, but bursts can briefly exceed N); (b) <b>regional quota allocation</b> — a background controller hands each region a slice of the global budget and rebalances every few seconds based on observed demand (approximate, self-correcting); or (c) <b>home-region routing</b> — pin each key (user/tenant) to an owning region and enforce there, so its limit is exact while other regions forward or cache. Reserve a strict global counter for cases that truly require exactness (e.g. hard billing caps), and accept its latency.</p>
+      <p><b>Token bucket</b> (capacity + refill) = best general-purpose. Atomicity: Redis Lua script for read→refill→decrement→write, keeping the check-and-decrement on one node. Reject with 429 + Retry-After. Multi-region: prefer regional quotas or home-region routing over a synchronous global counter.</p>
+      <details class="deepdive"><summary>Deep dive: multi-region rate limiting</summary>
+      <p>Do <b>not</b> put a single synchronous global counter on the hot path — a cross-region round trip per request adds ~100 ms and creates a single point of failure. Instead:</p>
+      <ul>
+        <li><b>Local limits</b> — each region enforces against its own Redis, so a global limit N is split as N/regions (simple, but bursts can briefly exceed N).</li>
+        <li><b>Regional quota allocation</b> — a background controller hands each region a slice of the global budget and rebalances every few seconds based on observed demand (approximate, self-correcting).</li>
+        <li><b>Home-region routing</b> — pin each key (user/tenant) to an owning region and enforce there, so its limit is exact while other regions forward or cache.</li>
+      </ul>
+      <p>Reserve a strict global counter for cases that truly require exactness (e.g. hard billing caps), and accept its latency.</p>
+      </details>
       <h3>Job Scheduler</h3>
-      <p>Claim atomically: <code>SELECT ... FOR UPDATE SKIP LOCKED</code> or conditional PENDING→CLAIMED. Leases + heartbeat + fencing token (slow ≠ dead). At-least-once → idempotent jobs.</p>
-      <p><b>Timing — firing at the right moment.</b> Store <code>run_at</code>; workers poll <code>WHERE run_at &lt;= now() AND status='PENDING'</code> indexed on <code>run_at</code>. Polling interval bounds precision: a 1 s poll means "runs within ~1 s after due," i.e. <b>at-least-after, never-before</b> — good enough for most jobs. For sub-second or millions of near-term timers, layer a <b>timer wheel</b>/in-memory heap (or Redis sorted set keyed by <code>run_at</code>, or a broker delay queue) in front of the durable store; the DB stays the source of truth so nothing is lost on crash. Watch: <i>clock skew</i> across nodes (use one authority — the DB's <code>now()</code> — not each worker's wall clock); <i>missed ticks</i> after downtime (decide per job: fire every backlog occurrence, coalesce to one catch-up run, or skip stale ones); <i>thundering herd</i> when many jobs share a round timestamp (jitter <code>run_at</code>); and recurring jobs — compute the next <code>run_at</code> only after a run completes so a slow run can't overlap itself.</p>` },
+      <p>Claim atomically: <code>SELECT ... FOR UPDATE SKIP LOCKED</code> or conditional PENDING→CLAIMED. Leases + heartbeat + fencing token (slow ≠ dead). At-least-once → idempotent jobs. Fire from a <code>run_at</code> column (poll or a timer wheel in front of it).</p>
+      <details class="deepdive"><summary>Deep dive: firing at the right moment</summary>
+      <p>Store <code>run_at</code>; workers poll <code>WHERE run_at &lt;= now() AND status='PENDING'</code> indexed on <code>run_at</code>. Polling interval bounds precision: a 1 s poll means "runs within ~1 s after due," i.e. <b>at-least-after, never-before</b> — good enough for most jobs. For sub-second or millions of near-term timers, layer a <b>timer wheel</b>/in-memory heap (or Redis sorted set keyed by <code>run_at</code>, or a broker delay queue) in front of the durable store; the DB stays the source of truth so nothing is lost on crash.</p>
+      <p>Watch: <i>clock skew</i> across nodes (use one authority — the DB's <code>now()</code> — not each worker's wall clock); <i>missed ticks</i> after downtime (decide per job: fire every backlog occurrence, coalesce to one catch-up run, or skip stale ones); <i>thundering herd</i> when many jobs share a round timestamp (jitter <code>run_at</code>); and recurring jobs — compute the next <code>run_at</code> only after a run completes so a slow run can't overlap itself.</p>
+      </details>` },
 
     { id: 'quick-patterns', title: 'Quick Patterns (other questions)', html: `
       <ul>

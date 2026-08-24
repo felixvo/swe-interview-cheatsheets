@@ -202,6 +202,14 @@ pre code { font-family: var(--mono); }
 .srcnote { margin-top: 16px; padding-top: 9px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--text-faint); line-height: 1.55; }
 .srcnote b { color: var(--text-faint); font-weight: 600; }
 .srcnote a { color: var(--text-faint); text-decoration: underline; }
+.deepdive { border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; background: var(--surface-2); }
+.deepdive > summary { cursor: pointer; padding: 8px 13px; font-size: 13px; font-weight: 600; color: var(--accent); list-style: none; user-select: none; }
+.deepdive > summary::-webkit-details-marker { display: none; }
+.deepdive > summary::before { content: "▸ "; color: var(--text-faint); }
+.deepdive[open] > summary::before { content: "▾ "; }
+.deepdive[open] > summary { border-bottom: 1px solid var(--border); }
+.deepdive > :not(summary) { padding-left: 13px; padding-right: 13px; }
+.deepdive > :not(summary):last-child { padding-bottom: 10px; }
 
 /* ===== Flashcards ===== */
 .study-wrap { max-width: 680px; margin: 0 auto; }
