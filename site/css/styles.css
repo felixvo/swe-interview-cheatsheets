@@ -461,3 +461,49 @@ pre code { font-family: var(--mono); }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--text-dim); }
 footer.foot { text-align: center; color: var(--text-faint); font-size: 12.5px; margin-top: 50px; }
+
+/* ===== Header nav link ===== */
+.nav-link { padding: 7px 12px; border-radius: 9px; color: var(--text-dim); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.nav-link:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+.nav-link.active { background: var(--accent-weak); color: var(--accent); }
+
+/* ===== NeetCode 150 recall page ===== */
+.nc-wrap { max-width: 820px; }
+.nc-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.nc-select { font-family: inherit; font-size: 14px; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); max-width: 100%; }
+.nc-progress { font-size: 13px; color: var(--text-faint); }
+.nc-card { padding: 24px 26px; }
+.nc-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.nc-easy { background: var(--green-weak); color: var(--green); }
+.nc-medium { background: var(--amber-weak); color: var(--amber); }
+.nc-hard { background: var(--red-weak); color: var(--red); }
+.nc-title { font-size: 26px; margin: 12px 0 6px; line-height: 1.25; }
+.nc-title a { color: var(--text); }
+.nc-title a:hover { color: var(--accent); text-decoration: none; }
+.nc-oneliner { font-size: 16px; padding: 12px 15px; margin: 16px 0 8px; line-height: 1.5; }
+.nc-complexity { font-family: var(--mono); font-size: 12.5px; margin-bottom: 4px; }
+.nc-solution { position: relative; }
+.nc-solution pre { margin: 14px 0; transition: filter .15s ease; }
+.nc-reveal { display: none; }
+.nc-solution.hidden pre { filter: blur(7px); user-select: none; pointer-events: none; min-height: 140px; }
+.nc-solution.hidden .nc-reveal {
+  display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+  position: absolute; inset: 0; width: 100%; border: 1px dashed var(--border); border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent); color: var(--text-dim);
+  font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 16px; text-align: center;
+}
+.nc-solution.hidden .nc-reveal:hover { color: var(--text); border-color: var(--text-faint); }
+.nc-actions { margin-top: 6px; }
+.nc-actions .kbd { margin-left: 6px; }
+.btn.primary .kbd { color: #fff; border-color: rgba(255,255,255,.5); }
+.nc-auto { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 13px; cursor: pointer; }
+.nc-hint { font-size: 12.5px; text-align: center; margin-top: 16px; }
+@media (max-width: 600px) {
+  .top-inner { padding: 12px 16px; gap: 10px; }
+  .top-inner .brand { font-size: 0; }               /* keep just the logo dot on phones */
+  .app.nc-wrap { padding: 0 16px 60px; }
+  .nc-card { padding: 18px 16px; }
+  .nc-title { font-size: 21px; }
+  .nc-oneliner { font-size: 15px; }
+  .nc-actions .btn { flex: 1; }
+}

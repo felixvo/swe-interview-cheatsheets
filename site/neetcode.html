@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeetCode 150 Recall</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="index.html" style="color:inherit;text-decoration:none"><span class="dot"></span> SWE Interview Cheatsheets</a>
+      <div style="flex:1"></div>
+      <a class="nav-link active" href="neetcode.html">🎲 NeetCode 150</a>
+      <div class="theme-picker">
+        <button class="icon-btn" id="theme-toggle" title="Change theme" aria-haspopup="true" aria-expanded="false">🎨</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app nc-wrap">
+    <div class="nc-toolbar">
+      <select id="nc-cat" class="nc-select" aria-label="Category"></select>
+      <span class="nc-progress" id="nc-progress"></span>
+    </div>
+
+    <article class="card nc-card" id="nc-card">
+      <div class="nc-meta">
+        <span class="pill coding" id="nc-catpill"></span>
+        <span class="pill" id="nc-diff"></span>
+      </div>
+      <h1 class="nc-title"><a id="nc-title" target="_blank" rel="noopener"></a></h1>
+
+      <div class="mnemonic nc-oneliner">🧠 <b>Remember:</b> <span id="nc-oneliner"></span></div>
+      <div class="nc-complexity faint" id="nc-complexity"></div>
+
+      <div class="nc-solution" id="nc-solution">
+        <pre id="nc-code"></pre>
+        <button class="nc-reveal" id="nc-reveal" type="button">Recall it first — then click or press <span class="kbd">Space</span> to reveal</button>
+      </div>
+
+      <div class="btn-row nc-actions">
+        <button class="btn" id="nc-toggle" type="button">Show solution <span class="kbd">Space</span></button>
+        <button class="btn primary" id="nc-next" type="button">Next random <span class="kbd">N</span></button>
+      </div>
+      <label class="nc-auto faint"><input type="checkbox" id="nc-autoshow"> Always show solution</label>
+    </article>
+    <p class="faint nc-hint">Refresh for a new problem. Problems don’t repeat until you’ve seen every one in the current category.</p>
+  </main>
+
+  <script src="data/neetcode.js"></script>
+  <script src="js/highlight.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/neetcode.js"></script>
+</body>
+</html>
