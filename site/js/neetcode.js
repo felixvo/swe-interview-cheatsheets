@@ -60,6 +60,7 @@
     const t = $('nc-title');
     t.textContent = p.t + ' ↗';
     t.href = p.u;
+    $('nc-question').textContent = p.q;
     $('nc-oneliner').textContent = p.o;
     $('nc-complexity').textContent = p.x;
     const code = $('nc-code');

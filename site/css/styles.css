@@ -480,6 +480,7 @@ footer.foot { text-align: center; color: var(--text-faint); font-size: 12.5px; m
 .nc-title { font-size: 26px; margin: 12px 0 6px; line-height: 1.25; }
 .nc-title a { color: var(--text); }
 .nc-title a:hover { color: var(--accent); text-decoration: none; }
+.nc-question { font-size: 15.5px; line-height: 1.6; color: var(--text); margin: 4px 0 0; max-width: 70ch; }
 .nc-oneliner { font-size: 16px; padding: 12px 15px; margin: 16px 0 8px; line-height: 1.5; }
 .nc-complexity { font-family: var(--mono); font-size: 12.5px; margin-bottom: 4px; }
 .nc-solution { position: relative; }
